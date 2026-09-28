@@ -144,9 +144,10 @@ main-specific questions.
 ## TO-DOs
 
 ### High priority
-- Export functionality
-- session save-load with autosave or on click
-- propensity scoring models
+- Export results functionality
+- Session save/load, with autosave or on click
+- Propensity score weighted/adjusted/matched models
+- Alternative plot types per variable combination (heat map, balloon plot, etc.) (plot 3 vars in 2 dimensions or new types of plots for existing 2 vars)
 - change warning color
 - extra badge for transformed, not a character in front of the badge
 - winsorize data validation not on change, on lose focus
@@ -170,8 +171,6 @@ main-specific questions.
 #### Mid magnitude
 - Statistical tests in the Explore › Relationship summary panel (num × fac → Kruskal-Wallis; fac × fac → chi-square / Fisher's). Reports already have these via the table helpers; the Explore summary does not.
 - Async report generation (synchronous now; cancel needs `future` / `promises`).
-- when changing LHS pills in explore data from describe to corelate and then clicking plot relationship button, secondary variable chosen for plot is the secondary variable in the correlate LHS pane; primary and stratify by are still left over from the last selection in the describe pill.
-- when going from correlate back to describe, it uses the primary and stratify by variables in correlate; i think we need to reassign the state variables on pill change/click
 - Custom Report's config pane now holds only Output Format + Generate, so it has room for a "Report Contents" box like Full Report's (Dataset Summary, Table One). Probably a shared component between the two rather than two copies.
 - **Drag-and-drop reordering of Custom Report items.** The list is in the centre and reorders via the toolbar's Move Up / Move Down, which needs no JS. Drag would need `sortable` (a SortableJS wrapper) attached to the row container - `sortable_js()`, not `rank_list()`, which is text-labels-only. The fiddly part is not the drag: it is that the drop rewrites the DOM while `renderUI` re-renders from `shared_state$custom_report_items`, so the input -> server reorder -> re-render round trip has to land on the same order or the row snaps back. Needs `chromote` to verify.
 
@@ -199,7 +198,6 @@ Phases 0–7 and 6b complete; Step 6 (Export, Phase 8) is a placeholder stub. Ph
 - **Mixed models have no influence check** — Model › Diagnostics offers Cook's distance / leverage for lm / glm only. A cluster-level (leave-one-cluster-out) influence check would close the gap (§A11.2).
 - generate table 1 spinner - specify which table its working on, e.g. if it has 3 to generate (overall, by exposure, by outcome) have 3 stops on the bar and change text to say which is being created
 - need to think about what we want table 1 RHS to show; for now, it doesn't accurately reflect what it's stratifying by, it just picks one of the vars i think maybe exposure by defualt?
-- **Setup and Covariates open with the info pane folded** (`info_open = "closed"` in their `edark_page()` calls). Both centres are wide one-row-per-variable tables and at 1280 px they were too tight with both panes open, so this was the Stage 4 viewport fallback. Worth re-checking at your usual window size: if there is room, drop the argument so they match every other page.
 
 ### Other
 

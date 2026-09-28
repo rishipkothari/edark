@@ -236,3 +236,32 @@ mode that offered the checkbox. Both now follow the report contents:
 whole-dataset behaviour that Prepare > Data Preview and the custom report rely on.
 Table One's `report_type == "all_vars"` gate is gone from `generate_report()` and from
 the Report module's checkbox, info row, and call, so Correlate reports can carry one.
+
+### 2026-09-25 - Setup and Covariates opened with the info pane folded
+
+Both pages passed `info_open = "closed"` to `edark_page()`: at 1280 px their one-row-per-variable
+tables were too tight with the config and info panes both open, so Stage 4 folded the info pane as
+a viewport fallback (§M9.4 NF-05). At a normal window size there is room, and the fold made two
+pages behave unlike every other one - the info pane's counts were there but invisible until clicked.
+
+Both arguments are gone; the pages now match the rest of the app. `edark_page(info_open = )` stays
+as a parameter, but nothing passes it.
+
+**Lesson:** a viewport fallback tuned to the narrowest supported width becomes a permanent
+inconsistency once nobody re-checks it. Prefer letting the pane scroll over closing it by default.
+
+### 2026-09-25 - Explore pills plotted the other pill's variables
+
+Switching Describe -> Correlate and clicking Plot Relationship drew Correlate's secondary
+variable against Describe's leftover primary and stratify; going back the other way used
+Correlate's primary and stratify. Both modes write the same `shared_state` fields, and
+each only wrote the inputs the user had touched, so whichever mode wrote last won and the
+untouched fields were whatever the other pill left behind.
+
+Fixed in `module_explore_controls.R`: each mode has a `publish_state()` that writes every
+field it owns from its own inputs and nulls what it does not own (Describe clears
+`secondary_variable`), fired on `active_mode()` becoming its id and again on its Plot
+button, so the spec is built from what is on screen. `explore_mode` is passed to both
+servers in `edark.R`.
+
+**Durable rule: §N4.8.**
