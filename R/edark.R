@@ -11,6 +11,10 @@
 #'   many unique non-NA values are auto-converted to `factor` at launch.
 #'   Also used as the high-cardinality guard threshold in the Explore stage.
 #'   Default `20`.
+#' @param session Path to a saved session (`.edark.rds`, from the Session
+#'   menu) to restore at launch (§M8.8). The session must match the dataset's
+#'   columns and column types exactly. If `dataset` is omitted, the data saved
+#'   in the session file is used.
 #'
 #' @return Launches a Shiny app (does not return a value).
 #'
@@ -20,8 +24,26 @@
 #' edark()                  # launches with built-in liver_tx demo data
 #' edark(mtcars)
 #' edark(palmerpenguins::penguins, max_factor_levels = 10)
+#' edark(my_data, session = "edark_session_2026-09-28_101500.edark.rds")
 #' }
-edark <- function(dataset = liver_tx, max_factor_levels = 20) {
+edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
+
+  # ── Session file (§M8.8) ───────────────────────────────────────────────────
+  # Read before validation: with no dataset argument, the session's own data
+  # is the dataset. `session` is renamed here because server() below has a
+  # `session` argument of its own.
+  launch_session <- NULL
+  if (!is.null(session)) {
+    launch_session <- tryCatch(read_session(session), edark_session_error = function(e) {
+      stop(conditionMessage(e), call. = FALSE)
+    })
+    if (missing(dataset)) {
+      if (is.null(launch_session$data)) {
+        stop("This session has no data. Call edark(your_data, session = ...).", call. = FALSE)
+      }
+      dataset <- launch_session$data
+    }
+  }
 
   # ── Validate ───────────────────────────────────────────────────────────────
   validate_input(dataset, max_factor_levels)
@@ -34,6 +56,17 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20) {
   # ── Pre-process (runs once, before the reactive graph starts) ──────────────
   dataset_cast  <- cast_column_types(dataset, max_factor_levels)
   column_types  <- detect_column_types(dataset_cast)
+
+  # Refuse a mismatched session here, in the console, rather than in the app
+  if (!is.null(launch_session)) {
+    reasons <- session_dataset_mismatch(launch_session, dataset, column_types)
+    if (!is.null(reasons)) {
+      stop(.SESSION_MSG_MISMATCH, "\n", paste0("  ", reasons, collapse = "\n"), call. = FALSE)
+    }
+    tryCatch(session_prepare_dataset(launch_session, dataset_cast),
+             edark_session_error = function(e) stop(conditionMessage(e), call. = FALSE))
+    launch_session$data <- NULL   # not needed past this point
+  }
 
   # ── UI ─────────────────────────────────────────────────────────────────────
   ui <- bslib::page_navbar(
@@ -163,6 +196,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20) {
     ),
 
     bslib::nav_spacer(),
+    session_ui("session"),
     bslib::nav_item(
       shiny::actionButton("debug_btn", label = shiny::icon("bug"))
     ),
@@ -244,7 +278,11 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20) {
       # analysis modules (see PRD §3.3). Never read or modified by Prepare/Explore.
       analysis_data   = NULL,
       analysis_spec   = NULL,
-      analysis_result = NULL
+      analysis_result = NULL,
+
+      # Session load (§M8.7): the Analyze part of a loaded session, waiting for
+      # Steps 1 and 4 to take it. NULL when idle. Written by the session module.
+      session_restore = NULL
     )
 
     # ── Prepare tab navigation guard ──────────────────────────────────────────
@@ -255,25 +293,10 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20) {
 
     # Shared helper: run the pipeline and commit to shared_state.
     .do_nav_apply <- function() {
-      # Prune filter specs invalidated by staged transforms or column exclusion.
-      .prune_conflicting_filter_specs(shared_state)
-      df <- tryCatch(
-        apply_prepare_pipeline(shared_state),
-        error = function(e) {
-          bslib::nav_select("prepare_tabs", last_prepare_tab())
-          shiny::showNotification(
-            paste("Error during apply:", conditionMessage(e)),
-            type = "error", duration = 8
-          )
-          NULL
-        }
-      )
+      df <- .run_prepare_apply(shared_state, on_error = function() {
+        bslib::nav_select("prepare_tabs", last_prepare_tab())
+      })
       if (is.null(df)) return()
-      shared_state$dataset_working       <- df
-      shared_state$column_types          <- detect_column_types(df)
-      shared_state$has_pending_changes   <- FALSE
-      shared_state$explore_needs_refresh <- TRUE
-      .snapshot_last_applied_specs(shared_state)
       shiny::showNotification("Changes applied.", type = "message", duration = 2)
     }
 
@@ -439,6 +462,10 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20) {
     explore_output_server("explore_output",   shared_state)
     report_server("report",                   shared_state)
     analysis_main_server("analysis_main",     shared_state)
+    # Last: a launch session is applied in the first flush, after every
+    # module above has registered its observers.
+    session_server("session", shared_state, dataset_input = dataset,
+                   launch_session = launch_session)
   }
 
   shiny::shinyApp(ui = ui, server = server)

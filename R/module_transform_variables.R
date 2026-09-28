@@ -253,6 +253,7 @@ transform_variables_server <- function(id, shared_state) {
             if (is.null(method)) return()
 
             specs <- shared_state$column_transform_specs
+            before <- specs
 
             if (identical(method, "none")) {
               specs[[.col]] <- NULL
@@ -276,6 +277,9 @@ transform_variables_server <- function(id, shared_state) {
               }
             }
 
+            # Guarded (§N1.2): a revert or session load moves the picker to the
+            # method already staged, which must not flag a pending change.
+            if (identical(specs, before)) return()
             shared_state$column_transform_specs <- specs
             shared_state$has_pending_changes    <- TRUE
           }, ignoreNULL = TRUE, ignoreInit = TRUE)

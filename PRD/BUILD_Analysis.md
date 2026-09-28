@@ -448,50 +448,57 @@ Extends Phase 6b's train/test option into internal validation. PRD §A1.4a, §A5
 
 ## Phase S — Session Save and Load
 
-**Independent of Phases 7–8** — touches only Prepare, Step 1 and Step 4, all complete. Step 1 also restores `purpose_specification` (model purpose and train/test split). Build whenever convenient.
+**Status: built 2026-09-28** on branch `session-manager-v1` (S1-S4 and the launch argument). Autosave (S5b) is deferred. Not yet verified in R or the browser - see "Verification" below.
 
-### What to build
+**Independent of Phases 7-8** - touches Prepare, Step 1 and Step 4. Spec: §M8.
 
-**S1 — Service layer**
-- `service_session.R`: `dataset_definition()`, `build_session()`, `read_session()`, `.SESSION_SCHEMA_VERSION`, the migration framework (empty for v1), and `reconcile_session()` with every §13.6 rule
-- `testthat` unit tests: save → read gives an identical session; each §13.6 row, including new and missing factor levels and numeric bounds at the data edge; newer schema refused; invalid file refused
+### What was built
 
-**S2 — Save**
-- `module_session.R`: Session navbar menu, save modal with the "Include dataset" checkbox, `downloadHandler`
+**S1 - Service layer** (`service_session.R`)
+- `dataset_definition()` (input classes), `dataset_signature()`, `build_session()`, `read_session()` / `validate_session()`, `.SESSION_SCHEMA_VERSION`, `session_dataset_mismatch()` (exact match, §M8.4), `session_prepare_dataset()` (refuses rather than adjusts, §M8.6), thumbnail pack / unpack
+- No migration framework: pre-release, the schema changes in place (§M8.5)
+- `testthat` unit tests: `tests/testthat/test-service_session.R`
 
-**S3 — Load: Prepare**
-- Load modal, confirm modal, and steps 1–3 of §13.7
-- One shared function runs the Apply pipeline so Apply and load don't duplicate it — refactor out of `module_prepare_confirm.R` if needed
+**S2 - Save** (`module_session.R`)
+- Session navbar menu, save modal with the "Include dataset" checkbox, `downloadHandler`
 
-**S4 — Load: Analyze**
+**S3 - Load: Prepare and custom report**
+- Load modal, checks, confirm modal (with the custom-report warning), steps 3-4 of §M8.7
+- One shared Apply commit: `.run_prepare_apply()` / `.commit_working_dataset()` in `module_prepare_confirm.R`, used by the Apply button, the tab-switch auto-apply in `edark.R`, and load
+
+**S4 - Load: Analyze**
 - `shared_state$session_restore` payload
-- `module_analysis_setup.R`: take the payload in — freeze, apply roles, clear `roles`
-- `module_analysis_covariate_confirm.R`: take the payload in on a `roles_key` change when the roles match
+- `module_analysis_setup.R`: take the payload in - freeze, apply roles and reference levels, purpose and validation settings; or unfreeze when the session has no analysis
+- `module_analysis_covariate_confirm.R`: take the covariates on a `roles_key` change when the roles match
 - Navigate and show the toast
 
-**S5 — Launch argument and autosave**
-- `edark(session = )` per §13.8
-- Autosave writer, file limit, and resume modal per §13.9
+**S5a - Launch argument**
+- `edark(session = )` per §M8.8; a mismatch stops in the console before the app starts
+
+**S5b - Autosave (deferred)**
+- Writer, file limit and resume prompt per §M8.9, once the cost of writing on every change is measured
 
 ### What NOT to touch
-- Steps 2, 3, 5–9 module and service files
+- Steps 2, 3, 5-6 module and service files
 - Model fitting, validation, and reset logic (`service_analysis_models.R`, `service_analysis_validation.R`, `service_analysis_pipeline.R`)
 
 ### Acceptance criteria
-- Round trip on `liver_tx` with transforms, filters, roles, clusters and covariates: after loading, every Prepare tab, the Step 1 table and the Step 4 checkboxes show the saved state; the Step 5 preflight equals the preflight before saving; nothing has been fitted
-- A session saved before Step 4 was used restores roles, and Step 4 opens with nothing checked
-- A session saved before Start Analysis restores Prepare only
-- Loading onto `liver_tx[1:300, ]` succeeds; filters and reference levels adjust per §13.6
-- Loading onto `liver_tx` with a column dropped, or a column's type changed: everything else loads, with no error and no list of what was skipped
+- Round trip on `liver_tx` with transforms, filters, roles, clusters, a prediction purpose with non-default validation settings, covariates and custom report items: after loading, every Prepare tab, the Step 1 table and purpose inputs, the Step 4 checkboxes and the Report › Custom list (with thumbnails) show the saved state; the Step 5 preflight equals the preflight before saving; nothing has been fitted
+- A session saved with nothing checked in Step 4 restores roles, and Step 4 opens with nothing checked
+- A session saved before Start Analysis restores Prepare only, and unfreezes an analysis that was frozen
+- Loading onto `liver_tx[1:300, ]` succeeds (same columns and types, fewer rows)
+- Loading onto `liver_tx` with a column dropped, added or retyped is refused with the reasons; nothing changes
 - Loading onto an unrelated dataset (e.g. `mtcars`) is refused
 - A newer-schema file is refused with the update message
 - Data in a session file is used only by `edark(session = )` with no dataset argument, never by an in-app load
-- An autosave is written after Apply, a role change and a covariate change, never contains data, and offers resume on the next launch with the same dataset definition
 - Verified in the browser with `chromote`, not only `testServer` (the Step 1 and Step 4 tables are patched client-side)
 - `devtools::check()` passes with 0 errors, 0 warnings
 
+### Verification
+Written without an R installation. Still to do on a desktop: `devtools::document()` (new internal Rd files), `devtools::test()`, `devtools::check()`, and a `chromote` run through the acceptance criteria.
+
 ### PRD references
-- §13.1–13.10, §5.3 Step 9 (materials vs session)
+- §M8.1-M8.10, §A10 (materials vs session)
 
 ---
 

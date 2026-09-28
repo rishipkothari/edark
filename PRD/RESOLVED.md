@@ -124,6 +124,27 @@ _Nothing closed yet._
 
 ## Other
 
+### 2026-09-28 - session save / load on click (branch `session-manager-v1`)
+
+The high-priority TO-DO "session save-load with autosave or on click". The on-click half is
+built; autosave stays open in the root `CLAUDE.md`.
+
+§M8 had been written before this build but did not match what was wanted, and was revised
+with the user first: match the dataset on **input** classes (what decides whether a transform
+lands) rather than EDARK types, and **no partial loads** - refuse unless every column and type
+matches, where the old spec skipped whatever no longer fit. Model purpose, validation settings
+and the custom report list (thumbnails as PNG bytes) were added to the file. Schema migrations
+were dropped until release. Two gaps in the old spec were closed: `purpose_specification`
+was in the build plan but not the file format, and Phase S cited sections as "§13.x".
+
+The build also merged the two copies of the Apply commit (`do_apply()` and `.do_nav_apply()`)
+into `.run_prepare_apply()` / `.commit_working_dataset()`, so load does not add a third.
+
+Written without R; unit tests are in `tests/testthat/test-service_session.R`, and the browser
+check is still to do (Phase S › Verification in `BUILD_Analysis.md`).
+
+**Durable rule: §N3.5**
+
 ### 2026-09-25 - the warning colour was an alarm, and amber meant three things
 
 Bootswatch flatly's `warning` is `#f39c12`. Flatly also fills `.alert` solid and sets its

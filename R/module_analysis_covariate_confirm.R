@@ -253,7 +253,25 @@ analysis_covariate_confirm_server <- function(id, shared_state) {
       if (identical(key, shiny::isolate(staged())$key)) return()
       spec <- shiny::isolate(shared_state$analysis_spec)
       refs <- if (!is.null(spec)) spec$variable_roles$reference_levels else list()
-      .set_staged(covariates = character(0), refs = if (is.null(refs)) list() else refs,
+
+      # Session load (§M8.7): Step 1 has just applied the session's roles, so
+      # start from the session's covariates instead of none - but only if the
+      # roles in the spec are the ones the covariates were saved with.
+      covs <- character(0)
+      sr   <- shiny::isolate(shared_state$session_restore)
+      if (isTRUE(sr$step1_done) && !is.null(spec)) {
+        vr <- spec$variable_roles
+        .same <- function(a, b) setequal(as.character(a), as.character(b))
+        if (.same(vr$outcome_variable,     sr$roles$outcome_variable) &&
+            .same(vr$exposure_variable,    sr$roles$exposure_variable) &&
+            .same(vr$candidate_covariates, sr$roles$candidate_covariates) &&
+            .same(vr$cluster_variables,    sr$roles$cluster_variables)) {
+          covs <- intersect(as.character(sr$covariates), vr$candidate_covariates)
+        }
+        shared_state$session_restore <- NULL
+      }
+
+      .set_staged(covariates = covs, refs = if (is.null(refs)) list() else refs,
                   key = key)
     })
 

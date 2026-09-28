@@ -139,7 +139,7 @@ Missing columns, dropped factor levels, and variables that no longer exist are h
 | Function | Purpose |
 |---|---|
 | `edark(dataset = liver_tx, max_factor_levels = 20)` | Launch the app. Validates input, auto-casts types (§P2), builds UI and server. |
-| `edark(dataset, session = path)` | *Planned* — launch and restore a saved session (§M8.8). |
+| `edark(dataset, session = path)` | Launch and restore a saved session (§M8.8). |
 | `edark_report(data, report_type, variables, primary_variable, primary_role, stratify_variable, report_format, output_path, max_factor_levels)` | Generate a Full Report without the app (§E15). |
 | `generate_report()` / `generate_custom_report()` | Shiny-free report builders used by both the app and `edark_report()` (§E15). |
 
@@ -174,12 +174,12 @@ Layout, action placement and visual hierarchy follow [NOTE_UI-principles.md](NOT
 | Aesthetics | `ggplot_theme`, `color_palette`, `show_data_labels`, `show_legend`, `legend_position` | Explore controls | Explore output |
 | Custom report | `custom_report_items`, `requested_tab`, `requested_report_subtab` | Explore output; Report | Report; `edark.R` navigation observer |
 | Analyze | `analysis_data`, `analysis_spec`, `analysis_result` | Analyze modules only | Analyze modules only (§M5.3) |
-| Session *(planned)* | `session_restore`, `session_loaded_at` | Session module | Analyze Steps 1 and 4 (§M8.10) |
+| Session | `session_restore` | Session module | Analyze Steps 1 and 4, which clear it (§M8.7) |
 
 Stage PRDs list their fields in detail: §P10, §E9, §A3.3.
 
 ### M5.3 Analysis-Reserved Fields
-`analysis_data`, `analysis_spec` and `analysis_result` belong to Analyze. Prepare, Explore and Report never read or write them. Analyze reads Prepare state exactly once — at freeze — and never writes back (§A1.2, §M6.6). The only planned exception is the session module reading `analysis_spec` to save it (§M8.10).
+`analysis_data`, `analysis_spec` and `analysis_result` belong to Analyze. Prepare, Explore and Report never read or write them. Analyze reads Prepare state exactly once — at freeze — and never writes back (§A1.2, §M6.6). The only exception is the session module reading `analysis_spec` to save it (§M8.10).
 
 ---
 
@@ -230,7 +230,7 @@ EDARK produces four kinds of output. They are deliberately separate.
 | **Explore reports** | Full or custom PPTX / DOCX / HTML report of plots and summary tables | Explore › Report (§E10–E14) | Built |
 | **Analysis materials** | Tables, figures, methods, report, R script, spec, optional dataset — for publication and reproduction | Analyze Step 9 (§A10) | Planned (Phase 8) |
 | **Dataset export** | Working dataset (and optionally original + Prepare spec) as RDS / CSV | Prepare (§P9) | Backlog |
-| **Session file** | Saved decisions for resuming work, optionally with data | Session menu (§M8) | Planned (Phase S) |
+| **Session file** | Saved decisions for resuming work, optionally with data | Session menu (§M8) | Built (Phase S; autosave deferred) |
 
 Single-plot exports (Save Plot, Copy to Clipboard) are in the Explore output panel (§E6).
 
@@ -238,124 +238,123 @@ Single-plot exports (Save Plot, Copy to Clipboard) are in the Explore output pan
 
 ## M8 — Session Save and Load
 
-**Status:** planned — build plan Phase S. Spans Prepare and Analyze.
+**Status:** built 2026-09-28 (Phase S, save / load / launch argument). Autosave is deferred - evaluate the cost of writing on every change first (§M8.9). Spans Prepare, Explore › Report and Analyze.
 
 ### M8.1 Purpose
 
-Let a researcher save their setup and pick up where they left off — on the same dataset, or on a new version of it with the same columns (e.g. a refreshed data pull). A session file stores **decisions, not results**. Loading one sets up the app; nothing is fitted or computed. Anything that needs to run (Table 1, variable investigation, the model) is re-run by the user.
+Let a researcher save their setup and pick up where they left off - on the same dataset, or on a refreshed pull of it with exactly the same columns and column types. A session file stores **decisions, not results**. Loading one sets up the app; nothing is fitted or computed. Anything that needs to run (Table 1, variable investigation, the model) is re-run by the user.
 
-This is separate from **materials** (Analyze Step 9, §A10), which exports outputs for publication and reproduction.
+This is separate from **materials** (Analyze Step 6 Export, §A10), which exports outputs for publication and reproduction.
 
 ### M8.2 What a Session Contains
-
-The minimum session is the work that is slowest to redo by hand:
 
 | Area | Content | Source |
 |---|---|---|
 | Prepare | Included columns, type overrides, transforms, row filters | `shared_state$last_applied_specs` |
-| Analyze Step 1 | Outcome, exposure, candidate covariates, clusters; model purpose and train/test split | `analysis_spec$variable_roles`, `analysis_spec$purpose_specification` |
-| Analyze Step 4 | Checked covariates and reference levels. Only saved if Step 4 was used (`final_model_covariates` is not `NULL`) | `analysis_spec$variable_roles` |
+| Explore › Report | The custom report list: each item's plot spec, title, time added, and its thumbnail as PNG bytes | `shared_state$custom_report_items` |
+| Analyze Step 1 | Outcome, exposure, candidate covariates, clusters, reference levels | `analysis_spec$variable_roles` |
+| Analyze Step 1 / Model › Performance | Model purpose, validation method, train/test split variable and training level; all validation settings (folds, repeats, bootstrap resamples, seed) | `analysis_spec$purpose_specification`, `analysis_spec$validation_settings` |
+| Analyze Step 4 | Checked covariates. `NULL` if none are checked | `analysis_spec$variable_roles$final_model_covariates` |
 
-**Not in a v1 session:** Explore settings, custom report items, Report settings, Table 1 options, Step 3 settings and results, model settings (including the optimizer), and any fitted object, table, or plot.
+**Not saved:** Explore picks and Appearance, Report settings, Table 1 options, Step 3 settings and results, model settings (including the optimizer), and any fitted object, table, or plot.
 
 Prepare settings that were staged but not yet applied are not saved. A session reflects the last Apply.
 
 ### M8.3 File Format
 
-A single `.rds` file with the extension `.edark.rds`, containing a plain named list. It must hold no functions or environments, and nothing from the file is ever run as code.
+A single `.rds` file with the extension `.edark.rds`, containing a plain named list. It holds no functions, environments or language objects - `read_session()` refuses a file that does - and nothing from the file is ever run as code.
 
 ```r
 list(
   session_schema_version = 1L,
-  edark_version          = "0.2.x",
+  edark_version          = "0.9",
   saved_at               = <POSIXct>,
   dataset_definition = list(
-    columns       = c(age_tx = "numeric", graft_type = "factor", ...),  # EDARK types, original data
-    factor_levels = list(graft_type = c("DBD", "DCD", "LD"), ...)
+    columns      = c(age_tx = "numeric", graft_type = "character", ...),  # input classes (§M8.4)
+    signature    = "3f9c0a1b2d4e5f60",    # short hash of `columns`
+    column_types = c(age_tx = "numeric", graft_type = "factor", ...)      # EDARK types after the launch casts
   ),
   prepare  = list(included_columns, column_type_overrides,
                   column_transform_specs, row_filter_specs),
   analysis = list(                        # NULL if Start Analysis was never clicked
-    roles = list(outcome_variable, exposure_variable,
-                 candidate_covariates, cluster_variables),
-    covariates = list(                    # NULL if Step 4 was not used
-      final_model_covariates, reference_levels
-    )
+    roles = list(outcome_variable, exposure_variable, candidate_covariates,
+                 cluster_variables, reference_levels),
+    purpose_specification, validation_settings,
+    final_model_covariates                # NULL if Step 4 has nothing checked
   ),
-  data = NULL                             # or the original data.frame, if the user chose to include it
+  custom_report_items = list(list(id, plot_spec, title, added_at, thumb_png = <raw>), ...),
+  data = NULL                             # or the input data.frame, if the user chose to include it
 )
 ```
 
-### M8.4 Dataset Definition
+### M8.4 Dataset Definition and Matching
 
-The dataset definition describes the **original** dataset (`dataset_original`, after the automatic type casting at launch): each column's name, its EDARK type (numeric / factor / datetime / character — not the R class, so integer vs double never matters), and each factor's levels. It is **not a hash of the data**. Different or additional rows never affect loading.
+The dataset definition describes the dataset **as it was passed to `edark()`**, before the launch casts (§P2.2): each column's name and R class (`class(x)` joined with `/`, e.g. `POSIXct/POSIXt`). The input class is what decides whether a saved transform or filter still lands. The `signature` is a short hash of that name -> class map (column order ignored) - a hash of the structure, **not of the data**: different or additional rows never affect it.
 
-When a session is loaded, a saved column **still applies** if a column with the same name and the same EDARK type exists in the current dataset. A saved column that is missing, or whose type differs, is treated as absent. Factor levels are never a reason to reject a load; §M8.6 covers them.
+A session loads only if the current dataset has **exactly** the same columns with the same input classes, **and** the launch casts read every column as the same EDARK type. The second check catches a character column that was cast to factor when saved (few unique values) but stays character now (more than `max_factor_levels`) - same input class, but a saved factor filter would not land.
 
-This is separate from the full-data hash that Step 1 stores at freeze (`specification_metadata$dataset_signature`), which still drives the "working dataset has changed" banner within a single session.
+This is separate from the full-data hash Step 1 stores at freeze (`specification_metadata$dataset_signature`), which drives the "working dataset has changed" banner within a single session.
 
-### M8.5 Schema Versioning
+### M8.5 Schema Version
 
-`session_schema_version` describes the session file format, not the app version. It changes only when the file's structure changes.
+`session_schema_version` describes the file format, not the app version. A file with a higher number than the app knows is refused: *"This session was saved with a newer version of EDARK (x.y). Update EDARK to load it."* An unreadable file, one without the session structure, or one holding code is refused: *"This file is not a valid EDARK session."*
 
-- **Older file:** upgraded on load by running migration functions in order (`.session_migrate_v1_to_v2()`, then v2→v3, and so on). Every schema change ships with its migration.
-- **Newer file** (saved by a later EDARK): refused with *"This session was saved with a newer version of EDARK (x.y.z). Update EDARK to load it."*
-- **Unreadable or wrong structure:** refused with *"This file is not a valid EDARK session."*
+**Pre-release, there are no migrations.** The structure changes in place and old files simply stop loading. Once EDARK is released, every schema change bumps the number and ships an upgrade function (`.session_migrate_v1_to_v2()`, ...) run in order on load. See the reminder in the root `CLAUDE.md` (Coding philosophy).
 
-### M8.6 Partial Loads
+### M8.6 No Partial Loads
 
-A session may be a mid-work save, and it may be loaded onto a different version of the dataset. **Apply whatever still fits, skip whatever doesn't, and don't report what was skipped.**
+A session applies whole or not at all. It is refused, with the reasons, when:
 
-| Item | Rule |
+| Check | Message |
 |---|---|
-| Included columns | Keep the saved columns that still apply. Columns new to the dataset are included (the user never excluded them). |
-| Type override | Skipped if its column no longer applies. |
-| Transform | Skipped if its column no longer applies, or if it is invalid on this data (`.transform_spec_is_valid()`, e.g. log of values ≤ 0). Cut points outside the new range are dropped as usual. |
-| Factor row filter | Keep saved levels that still exist. Levels new to the dataset are kept (the user never excluded them). If no saved level survives, the filter is skipped. |
-| Numeric row filter | A saved bound that sat at the old data edge (the user did not restrict that side) moves to the new data edge. Any other bound is kept as the user set it, clamped to the new data range. |
-| Outcome / exposure | Skipped if the variable no longer applies. |
-| Candidates / clusters | Keep the variables that still apply. |
-| Covariates | Keep the variables that still apply and are still candidates. |
-| Reference level | If the saved level no longer exists, fall back to the first level that does (existing Step 4 behaviour). |
+| Columns or input classes differ (§M8.4) | *"This session does not match this dataset."* followed by the missing columns, columns not in the session, and columns of a different type (first five of each) |
+| A column is cast to a different EDARK type | as above, "Read as a different type at launch: ..." |
+| A saved transform is invalid on this data (`.find_invalid_transforms_in()`, e.g. log of values <= 0) | *"The session's transforms do not fit this data: ..."* |
+| The Prepare pipeline errors | *"The session's data preparation failed on this data: ..."* |
+| The saved row filters leave no rows | *"The session's row filters leave no rows in this data."* |
 
-A load is refused only if **no** saved column applies: *"This session does not match this dataset."*
+Everything else is applied exactly as saved. Numeric filter bounds are kept as set, not moved to a new data edge; a factor filter keeps only rows at its saved levels. A saved reference level that is no longer a level of the frozen data falls back to Step 1's default (the first level), and Step 4 then applies its usual effective-level rule.
 
 ### M8.7 Load Sequence
 
-The load follows the order the user would have worked in. Later stages are handed to their modules as waiting payloads, so no module's reset logic can clear what the load just set.
+All checks run before anything is written, so a refused load changes nothing.
 
-1. **Confirm.** If the app has any applied Prepare changes or a frozen analysis, show *"Load session? This replaces your current data preparation and analysis setup."* with Cancel / Load.
-2. **Read** the file, validate it, upgrade old schemas, and apply the §M8.6 rules against the current `dataset_original`.
-3. **Prepare.** Write the adjusted settings into the staged Prepare fields and run the same pipeline Apply uses. Then save them as `last_applied_specs` and increment `revert_trigger`, so every Prepare tab refreshes its UI.
-4. **Analyze.** If the session has an `analysis` block, write `shared_state$session_restore <- list(token, roles, covariates)`.
-   - **Step 1** sees the payload, freezes the dataset (as if Start Analysis were clicked), applies the roles through its normal path (`.sync_spec()` + `.push_roles_to_table()`), and clears `roles` from the payload. No "Clear Analysis Results?" dialog appears; step 1 of this sequence already confirmed.
-   - **Step 4**: when its `roles_key` changes and a `covariates` payload is waiting, it applies the payload only if the spec's current roles match the payload's roles. It then sets its covariate selection from the payload instead of starting empty, and clears the payload. Its existing live-write logic then writes the covariates to the spec.
-5. **Navigate** to the furthest stage restored: Analyze Step 4 if covariates were restored, Step 1 if roles were, otherwise Prepare.
-6. **Notify** with a toast: *"Session loaded (saved 2026-09-18 14:02)."*
+1. **Read and check** the file: structure, schema version, dataset match, and the Prepare pipeline run on `dataset_original` (`session_prepare_dataset()`).
+2. **Confirm.** If the app has applied or staged Prepare changes, a frozen analysis, or custom report items, show *"Load session? This replaces your current data preparation and analysis setup. Analysis results are cleared."* with Cancel / Load. With items queued, a warning adds *"Your N custom report items will be discarded and replaced by the session's."*
+3. **Prepare.** Write the staged Prepare fields, commit the working dataset the same way Apply does (`.commit_working_dataset()`, which also snapshots `last_applied_specs`), and increment `revert_trigger` so every Prepare tab resyncs its inputs. Filter pruning is skipped - the specs were applied together when saved.
+4. **Custom report.** Replace `custom_report_items` with the session's, writing each thumbnail back to a new temp file. The old thumbnails are deleted.
+5. **Analyze.** If the session has an `analysis` block, or an analysis is frozen now, write `shared_state$session_restore <- list(token, step1_done = FALSE, roles, purpose_specification, validation_settings, covariates)`.
+   - **Step 1** sees the payload. With `roles`: it freezes the dataset (as Start Analysis does), sets the roles and reference levels in `roles_state` and applies them through its normal path (`.sync_spec()` + `.push_roles_to_table()`), then writes the purpose and validation settings into the spec. It sets `step1_done`, and clears the payload unless covariates are waiting. Without `roles` (the session predates Start Analysis): it unfreezes - `analysis_data`, `analysis_spec` and `analysis_result` go to `NULL` - and clears the payload. No "Clear Analysis Results?" dialog appears; step 2 already confirmed.
+   - **Step 4**: on the `roles_key` change this causes, if the payload has `step1_done` and the spec's roles match the payload's, it starts its selection from the saved covariates instead of none, then clears the payload. Its live-write logic then writes them to the spec.
+6. **Navigate** (after the flush, so Steps 1 and 4 have run): Analyze Step 4 if covariates were restored, Step 1 if roles were, otherwise Prepare.
+7. **Notify** with a toast: *"Session loaded (saved 2026-09-18 14:02)."*
 
 ### M8.8 Entry Points
 
-- **In the app:** a **Session** menu on the right of the navbar with *Save session…* and *Load session…*.
-  - **Save** shows an "Include dataset" checkbox (off by default) with the note *"Includes patient-level data. Only share where your data governance allows."* The file downloads as `edark_session_YYYY-MM-DD_HHMMSS.edark.rds`.
+- **In the app:** a **Session** menu on the right of the navbar with *Save session...* and *Load session...*.
+  - **Save** shows an "Include dataset" checkbox (off by default) with the note *"Includes patient-level data. Only share where your data governance allows."* The file downloads as `edark_session_YYYY-MM-DD_HHMMSS.edark.rds`. With the box ticked, the dataset stored is the one passed to `edark()`, before casting.
   - **Load** accepts a session file. Any data inside it is **ignored**; an app session never switches datasets.
 - **At launch:** `edark(dataset, session = "path.edark.rds")`.
-  - `dataset` given → the session is applied to that dataset, and any data in the file is ignored.
-  - `dataset` omitted and the file contains data → that data is launched, then the session is applied.
-  - `dataset` omitted and the file has no data → error: *"This session has no data. Call edark(your_data, session = ...)."*
+  - `dataset` given -> the session is applied to that dataset, and any data in the file is ignored.
+  - `dataset` omitted and the file contains data -> that data is launched, then the session is applied.
+  - `dataset` omitted and the file has no data -> error: *"This session has no data. Call edark(your_data, session = ...)."*
+  - A session that does not match is refused in the console, before the app starts, with the reasons.
 
-### M8.9 Autosave
+### M8.9 Autosave (deferred)
+
+Not built. The plan, to be revisited once the cost of building and writing a session on every change is measured:
 
 - **What:** a session without data. Data is never written automatically.
-- **When:** whenever saved content changes (`last_applied_specs`, `variable_roles`, `final_model_covariates`, `reference_levels`), with a ~2 s delay so a burst of clicks becomes one save. It only writes if the content differs from the last autosave. It also saves once when the session ends.
-- **Where:** `tools::R_user_dir("edark", "data")/autosave/`. Files are named by a short hash of the dataset definition (not the data), with the newest 10 kept per definition.
-- **Resume:** at launch, if an autosave exists for this dataset definition and no `session` argument was passed, show *"Resume your previous session from 2026-09-18 14:02?"* with **Resume** / **Start fresh**. Resume runs the load sequence in §M8.7.
+- **When:** whenever saved content changes (`last_applied_specs`, `variable_roles`, `final_model_covariates`, `purpose_specification`, `validation_settings`, `custom_report_items`), debounced ~2 s, only if the content differs from the last autosave; once more when the session ends.
+- **Where:** `tools::R_user_dir("edark", "data")/autosave/`, named by the dataset signature (§M8.4), newest 10 kept per signature.
+- **Resume:** at launch, if an autosave exists for this signature and no `session` argument was passed, offer *"Resume your previous session from 2026-09-18 14:02?"* with **Resume** / **Start fresh**, shown on or inside the splash card. Resume runs the load sequence in §M8.7.
 
 ### M8.10 Architecture Notes
 
-- Pure functions (no Shiny) go in `R/service_session.R`: `build_session()`, `read_session()`, `.session_migrate_*()`, `dataset_definition()`, `reconcile_session()` (the §M8.6 rules).
-- `R/module_session.R`: `session_ui()` / `session_server()` handle the navbar menu, the save/load modals, autosave, and the resume prompt.
-- **An exception to the analysis-field rule (§M5.3):** the session module may read `analysis_spec` to save it. It never writes analysis fields directly; Steps 1 and 4 apply their parts of `shared_state$session_restore` themselves.
-- New `shared_state` fields: `session_restore` (the waiting payload, `NULL` when idle) and `session_loaded_at`.
+- Pure functions (no Shiny) are in `R/service_session.R`: `dataset_definition()`, `dataset_signature()`, `build_session()`, `read_session()` / `validate_session()`, `session_dataset_mismatch()`, `session_prepare_dataset()`, and the thumbnail pack / unpack helpers. Errors are `edark_session_error` conditions whose message is shown to the user as is. Unit tests: `tests/testthat/test-service_session.R`.
+- `R/module_session.R`: `session_ui()` (the navbar menu) / `session_server(id, shared_state, dataset_input, launch_session)` handle the save and load modals, the confirm, the load sequence and a launch session. It is wired last in `server()`, so a launch session is applied in the first flush after every module has registered its observers.
+- **An exception to the analysis-field rule (§M5.3):** the session module reads `analysis_spec` to save it. It never writes analysis fields; Steps 1 and 4 apply their parts of `shared_state$session_restore` themselves.
+- New `shared_state` field: `session_restore` (the waiting payload, `NULL` when idle).
 
 ---
 

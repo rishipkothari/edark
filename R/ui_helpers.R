@@ -630,7 +630,7 @@ EDARK_VERSION <- "0.9"
 #' @rdname EDARK_VERSION
 #' @keywords internal
 #' @noRd
-EDARK_LAST_UPDATE <- "2026-09-25"
+EDARK_LAST_UPDATE <- "2026-09-28"
 
 
 #' The loading splash, shown until the app is ready to use

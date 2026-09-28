@@ -39,6 +39,8 @@ R/
 ├── build_variable_summary.R    Summary stats table for a single variable
 ├── stats_inference.R           THE place p-values and CIs are computed — see "Statistical methods registry"
 ├── generate_report.R           Core report generation: builds sections, assembles PPT/Word/HTML
+├── service_session.R           Session files (§M8): dataset definition + signature, build / read / validate, exact dataset match, rebuild Prepare from a session; pure
+├── module_session.R            Session navbar menu - Save (download .edark.rds) / Load (checks, confirm, load sequence); applies edark(session = ) at launch
 │
 ├── module_column_manager.R     Prepare › Columns tab — include/exclude only
 ├── module_column_transform.R   Pipeline helpers: .apply_column_transforms, .make_range_labels, .transform_spec_is_valid
@@ -137,6 +139,7 @@ main-specific questions.
 - do not commit without permission
 - if you are instructed to commit, add a message of at most 6 sentences, be brief. also, push after commits
 - remind me to push after commits
+- when a commit changes what a session saves (`build_session()` in `R/service_session.R`, or the shape of any state it copies - `last_applied_specs`, `custom_report_items`, `variable_roles`, `purpose_specification`, `validation_settings`), evaluate whether `.SESSION_SCHEMA_VERSION` needs a bump and an upgrade function. Pre-release: change the structure in place, no migrations (§M8.5); after release: bump + `.session_migrate_vN_to_vM()`
 - before every commit, update `EDARK_LAST_UPDATE` in `R/ui_helpers.R` to that day's date - it is shown on the splash screen. Keep `EDARK_VERSION` in step with `Version:` in DESCRIPTION.
 
 ---
@@ -145,7 +148,7 @@ main-specific questions.
 
 ### High priority
 - Export functionality
-- session save-load with autosave or on click
+- session autosave (save / load on click is built on `session-manager-v1`, §M8) - evaluate the cost of building + writing a session on every change first; resume prompt on or inside the splash card (§M8.9)
 - propensity scoring models
 - change warning color
 - extra badge for transformed, not a character in front of the badge

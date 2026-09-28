@@ -317,6 +317,68 @@ analysis_setup_server <- function(id, shared_state) {
       .do_freeze()
     }, ignoreInit = TRUE)
 
+    # ── Session load (§M8.7) ─────────────────────────────────────────────────
+    # The session module has already confirmed with the user and rebuilt
+    # Prepare, so no dialog here. With roles: freeze, then apply them through
+    # the normal path (.sync_spec + table push), then purpose and validation
+    # settings. Without: the session has no analysis, so unfreeze. Step 4
+    # takes the covariates on the roles_key change this causes.
+    shiny::observeEvent(shared_state$session_restore, {
+      sr <- shared_state$session_restore
+      if (is.null(sr) || isTRUE(sr$step1_done)) return()
+
+      if (is.null(sr$roles)) {
+        shared_state$analysis_data   <- NULL
+        shared_state$analysis_spec   <- NULL
+        shared_state$analysis_result <- NULL
+        roles_state(NULL)
+        frozen_trigger(shiny::isolate(frozen_trigger()) + 1L)
+        shared_state$session_restore <- NULL
+        return()
+      }
+
+      .do_freeze()
+      rs <- shiny::isolate(roles_state())
+      if (is.null(rs)) {                  # nothing to freeze (no rows)
+        shared_state$session_restore <- NULL
+        return()
+      }
+      r     <- sr$roles
+      adata <- shiny::isolate(shared_state$analysis_data)
+      .set_role <- function(rs, vars, role) {
+        for (v in intersect(vars, names(rs))) {
+          if (.role_eligible(v, role)) rs[[v]][[role]] <- TRUE
+        }
+        rs
+      }
+      rs <- .set_role(rs, r$outcome_variable,     "outcome")
+      rs <- .set_role(rs, r$exposure_variable,    "exposure")
+      rs <- .set_role(rs, r$candidate_covariates, "candidate")
+      rs <- .set_role(rs, r$cluster_variables,    "cluster")
+      for (v in intersect(names(r$reference_levels), names(rs))) {
+        lvl <- r$reference_levels[[v]]
+        if (is.factor(adata[[v]]) && isTRUE(lvl %in% levels(adata[[v]]))) {
+          rs[[v]]$reference_level <- lvl
+        }
+      }
+      roles_state(rs)
+      .sync_spec(rs)
+
+      spec <- shiny::isolate(shared_state$analysis_spec)
+      if (!is.null(sr$purpose_specification)) {
+        spec$purpose_specification <- sr$purpose_specification
+      }
+      if (!is.null(sr$validation_settings)) {
+        spec$validation_settings <- sr$validation_settings
+      }
+      shared_state$analysis_spec <- spec
+      purpose_trigger(shiny::isolate(purpose_trigger()) + 1L)
+      .push_roles_to_table()
+
+      sr$step1_done <- TRUE
+      shared_state$session_restore <- if (length(sr$covariates)) sr else NULL
+    }, ignoreNULL = TRUE)   # no ignoreInit: a launch session arrives in the first flush
+
     # ── Role change dispatcher ────────────────────────────────────────────────
     shiny::observeEvent(input$role_change, {
       ev     <- input$role_change

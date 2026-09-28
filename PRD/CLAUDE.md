@@ -114,6 +114,8 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `service_analysis_variable_selection.R` | §A9, §N6.5 |
 | `service_analysis_codegen.R` | §A7.9 |
 | `service_analysis_export.R` | §A10 |
+| `service_session.R` | §M8, §N3.5 |
+| `module_session.R` | §M8.7-M8.8, §N3.5 |
 | `data/liver_tx.rda` | §N7 |
 
 ---
@@ -135,7 +137,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 - **Built 2026-09-23:** UI consistency Stage 5 - flatter navigation, one look per level. Prepare and Explore page tabs became pills; Step 3's nested pills and Report's Full / Custom became underline tabs; Data Preview dropped from three tab levels to one pair of toggles; Analyze's six step pills fit one row at 1280 px with shortened labels. Card tabs are now used only for views of one generated result. **Open for the user:** Report's Full / Custom went to level 3b rather than the config-pane pills D8 names, because D11 leaves Custom with no result surface - see Stage 5 in BUILD_UI-redesign.md
 - **Built 2026-09-23:** UI consistency Stage 6 - the small fixes. Explore gained an empty state and its plot toolbar is disabled until a plot exists; the variable-selection modal puts its actions above the list; the Row Filters row count moved into Prepare's info pane; copy pass ("Explore Data", "Clear", "Run Selection"); the button sweep is clean - `grep` for `"btn-` finds hits only in `R/ui_helpers.R`
 - **UI consistency plan complete:** all six stages done ([BUILD_UI-redesign.md](BUILD_UI-redesign.md)). Report's Full / Custom sits at level 3b (underline tabs) rather than the config-pane pills D8 named - ruled 2026-09-23: it is the third nested level, so it follows the level, not the original wording
-- **Not started:** Phase S session save / load / autosave (§M8).
+- **Built 2026-09-28 (branch `session-manager-v1`):** Phase S session save / load and `edark(session = )` (§M8). Exact dataset match on input classes, no partial loads; saves Prepare, custom report items, roles, purpose, validation settings and covariates. Not yet run in R - see Phase S › Verification in [BUILD_Analysis.md](BUILD_Analysis.md). Autosave deferred (§M8.9).
 
 ---
 

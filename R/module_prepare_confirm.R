@@ -184,26 +184,8 @@ prepare_confirm_server <- function(id, shared_state) {
 
     # ── Shared apply helper ───────────────────────────────────────────────────
     do_apply <- function() {
-      # Remove filter specs that would be invalidated by staged transforms or
-      # by column exclusion, before running the pipeline.
-      .prune_conflicting_filter_specs(shared_state)
-
-      df <- tryCatch(
-        apply_prepare_pipeline(shared_state),
-        error = function(e) {
-          shiny::showNotification(
-            paste("Error during Apply:", conditionMessage(e)),
-            type = "error", duration = 8
-          )
-          NULL
-        }
-      )
+      df <- .run_prepare_apply(shared_state)
       if (is.null(df)) return()
-      shared_state$dataset_working       <- df
-      shared_state$column_types          <- detect_column_types(df)
-      shared_state$has_pending_changes   <- FALSE
-      shared_state$explore_needs_refresh <- TRUE
-      .snapshot_last_applied_specs(shared_state)
       shiny::showNotification(
         paste0("Applied! ",
                format(nrow(df), big.mark = ","), " rows \u00d7 ", ncol(df), " columns."),
@@ -397,6 +379,44 @@ apply_prepare_pipeline <- function(shared_state) {
     dataset <- dataset[keep, , drop = FALSE]
   }
   dataset
+}
+
+
+# The Apply pipeline, shared by the Apply button and the tab-switch auto-apply
+# in edark.R: prune filters the staged changes invalidate, run the pipeline,
+# commit. Returns the working dataset, or NULL after showing the error (and
+# calling on_error, e.g. to put the tab back).
+.run_prepare_apply <- function(shared_state, on_error = NULL) {
+  # Remove filter specs that would be invalidated by staged transforms or
+  # by column exclusion, before running the pipeline.
+  .prune_conflicting_filter_specs(shared_state)
+  df <- tryCatch(
+    apply_prepare_pipeline(shared_state),
+    error = function(e) {
+      if (is.function(on_error)) on_error()
+      shiny::showNotification(
+        paste("Error during Apply:", conditionMessage(e)),
+        type = "error", duration = 8
+      )
+      NULL
+    }
+  )
+  if (is.null(df)) return(NULL)
+  .commit_working_dataset(shared_state, df)
+  df
+}
+
+
+# Commit a working dataset built from the staged specs: set it, re-detect
+# types, clear pending, flag Explore, and snapshot the specs as last applied.
+# Used by Apply and by session load (module_session.R), which sets the staged
+# specs itself first.
+.commit_working_dataset <- function(shared_state, df) {
+  shared_state$dataset_working       <- df
+  shared_state$column_types          <- detect_column_types(df)
+  shared_state$has_pending_changes   <- FALSE
+  shared_state$explore_needs_refresh <- TRUE
+  .snapshot_last_applied_specs(shared_state)
 }
 
 

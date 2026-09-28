@@ -132,7 +132,7 @@ Any `reactive({})` that only calls `apply_prepare_pipeline(shared_state)` will *
 - `module_prepare_confirm.R` — Apply Changes / Reset buttons.
 - `edark.R` — the sub-tab navigation guard (`.do_nav_apply()`): auto-applies on sub-tab switch, blocks on invalid transforms (`.find_invalid_transforms()`), and shows the custom-report modal.
 - The custom-report modal (`.custom_items_modal()`) offers three routes and each caller must wire all three: confirm, revert, and **discard the items** (`.clear_custom_report_items()`). Discard is what ends the dialog - without it the same modal fires on every Apply and every Prepare tab switch for the rest of the session, and Prepare has no other way to empty the queue.
-- Both call `.prune_conflicting_filter_specs()` first (drops filters on excluded columns or columns with a staged transform), then snapshot with `.snapshot_last_applied_specs()`.
+- Both go through `.run_prepare_apply()` (in `module_prepare_confirm.R`): `.prune_conflicting_filter_specs()` first (drops filters on excluded columns or columns with a staged transform), then the pipeline, then `.commit_working_dataset()`, which sets the working dataset and types, clears pending, flags Explore and snapshots with `.snapshot_last_applied_specs()`. Session load (§N3.5) calls `.commit_working_dataset()` directly. Do not write a third copy of the commit.
 
 ### N3.3 Revert mechanics
 `.revert_to_last_applied()` restores `included_columns`, `column_type_overrides`, `column_transform_specs`, `row_filter_specs` from `last_applied_specs` and increments `revert_trigger`. Modules resync on it: column manager via `updateCheckboxInput`, transform table via `updateSelectInput`, row filters by clearing `registered_cols`.
@@ -146,6 +146,14 @@ Any `reactive({})` that only calls `apply_prepare_pipeline(shared_state)` will *
 - **A removed transform is still a change.** Anything comparing staged transforms against the last applied set must key off `union(names(specs), names(last_tx))`, never `names(specs)` alone — a transform deleted since the last Apply is absent from the staged list and would go untested. This is why `.build_prepare_warnings()` and `.prune_conflicting_filter_specs()` both use the union, and why `.apply_row_filters()` skips a filter whose `type` disagrees with the column as a backstop (`RESOLVED.md`, Prepare, 2026-09-24).
 
 ---
+
+### N3.5 Session load (`module_session.R`, `service_session.R`) - §M8
+- **Check everything before writing anything.** `.check()` runs the dataset match and `session_prepare_dataset()` (the full pipeline on `dataset_original`) and only then does `.apply()` touch `shared_state`. A refused load must leave the app unchanged.
+- **Load does not prune filters.** `.prune_conflicting_filter_specs()` compares staged transforms with `last_applied_specs`; a session's transforms all differ from the current ones, so pruning would drop every filter on a transformed column. Load writes the staged fields, then `.commit_working_dataset()` (which snapshots them as last applied), then bumps `revert_trigger` - the same resync Cancel uses.
+- **The Analyze handoff is a payload, not a write.** The session module never writes analysis fields. It sets `shared_state$session_restore`; Step 1's `observeEvent` on it freezes and applies roles, sets `step1_done`, and Step 4 picks up the covariates on the `roles_key` change that follows (its `observe` reads the payload with `isolate()` and clears it). All of this happens in one flush, so navigation is done in `session$onFlushed(once = TRUE)` - by then Step 4 has run and the gate has updated.
+- **No `ignoreInit` on Step 1's payload observer.** A launch session (`edark(session = )`) is written by a one-shot `observe` in the first flush; with `ignoreInit = TRUE` the observer's first run could be the one that sees it, and would skip it. `ignoreNULL = TRUE` is the guard. For the same reason `session_server()` is wired last in `server()`.
+- **Match on input classes, not EDARK types** - plus a second check that the launch casts produced the same EDARK types, because a character column with few values becomes a factor and with many stays character (`cast_column_types()`). Keep `dataset_input` (the data frame as passed) for both saving and matching; `dataset_original` is already cast.
+- **Custom report thumbnails are temp files.** They go into the file as PNG bytes (`thumb_png`) and come back as a new temp file; delete the old items' thumbnails when replacing the list.
 
 ## N4 — Explore Internals
 

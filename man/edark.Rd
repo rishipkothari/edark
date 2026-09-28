@@ -4,7 +4,7 @@
 \alias{edark}
 \title{Launch the EDARK exploratory data analysis GUI}
 \usage{
-edark(dataset = liver_tx, max_factor_levels = 20)
+edark(dataset = liver_tx, max_factor_levels = 20, session = NULL)
 }
 \arguments{
 \item{dataset}{A \code{data.frame} or \code{tibble}. Defaults to the built-in
@@ -15,6 +15,11 @@ arguments launches immediately for testing and demonstration.}
 many unique non-NA values are auto-converted to \code{factor} at launch.
 Also used as the high-cardinality guard threshold in the Explore stage.
 Default \code{20}.}
+
+\item{session}{Path to a saved session (\code{.edark.rds}, from the Session
+menu) to restore at launch (§M8.8). The session must match the dataset's
+columns and column types exactly. If \code{dataset} is omitted, the data saved
+in the session file is used.}
 }
 \value{
 Launches a Shiny app (does not return a value).
@@ -29,5 +34,6 @@ launches the Shiny application.
 edark()                  # launches with built-in liver_tx demo data
 edark(mtcars)
 edark(palmerpenguins::penguins, max_factor_levels = 10)
+edark(my_data, session = "edark_session_2026-09-28_101500.edark.rds")
 }
 }
