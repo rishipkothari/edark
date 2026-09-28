@@ -2,7 +2,7 @@
 #'
 #' One table at a time, chosen by two toggles: which dataset (Original or
 #' Working) and which view (Data or Summary). Transformed columns are tinted
-#' and their type label is prefixed with an arrow in the data views.
+#' and their type label gains a "T" badge in the data views.
 #'
 #' Before UI Stage 5 these four tables were three levels of tabs deep - the
 #' navbar, Prepare's card tabs, a `navset_card_tab` and a `navset_tab` inside
@@ -187,10 +187,11 @@ data_preview_server <- function(id, shared_state) {
       shiny::tags$div(
         shiny::tags$div(value, style = "font-weight: 600;"),
         shiny::tags$div(
-          # An arrow marks a transformed column, the same mark the changed-type
-          # badge uses (.edark-badge-changed in edark.css), so one glyph means
-          # "the pipeline touched this" in both places.
-          paste0(if (is_tinted) "\u2192 " else "", col_type),
+          # The "T" badge marks a transformed column, the same badge Prepare >
+          # Columns puts beside the type, so one mark means "the pipeline
+          # touched this" in both places.
+          col_type,
+          if (is_tinted) edark_transformed_badge(),
           style = paste0(
             "font-size: 0.72em; color: ",
             if (is_tinted) "var(--edark-tint-fg)" else "var(--bs-secondary-color)",
@@ -268,7 +269,7 @@ data_preview_server <- function(id, shared_state) {
     }
   } else {
     if (identical(which_view, "data")) {
-      "Dataset after the last Apply. Amber columns have a transform applied."
+      "Dataset after the last Apply. Tinted columns marked T have a transform applied."
     } else {
       "EDA summary for numeric and factor columns (working dataset after Apply)."
     }

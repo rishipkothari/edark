@@ -459,8 +459,13 @@ analysis_modelspec_server <- function(id, shared_state) {
         edark_section_label("Sample"),
         edark_info_row("Rows in analysis set", format(nrow(adata), big.mark = ",")),
         edark_info_row("Complete cases",
-                       tryCatch(format(compute_complete_cases(spec, adata), big.mark = ","),
-                                error = function(e) "-")),
+                       tryCatch({
+                         vars <- c(roles$outcome_variable, roles$exposure_variable,
+                                   spec$final_covariates,
+                                   if (isTRUE(grepl("_mixed$", mt))) roles$cluster_variables)
+                         cc <- compute_complete_cases(analysis_model_data(spec, adata), vars)
+                         format(nrow(cc$data), big.mark = ",")
+                       }, error = function(e) "-")),
 
         edark_section_label("Status"),
         edark_info_row("Fitted",

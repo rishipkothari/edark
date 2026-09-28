@@ -145,7 +145,7 @@ report_ui <- function(id) {
     # ── Full Report pill ──────────────────────────────────────────────────────
     bslib::nav_panel(
       value = "full_report",
-      title = shiny::tagList(shiny::icon("file-lines"), " Full Report"),
+      title = "Full Report",
 
       edark_page(
         # Config: settings first, then output format, then the one primary
@@ -231,16 +231,16 @@ report_ui <- function(id) {
         # variable and the stratify variable. Preview: the In App report
         # (§E11.4). Generating a preview switches to its tab; closing it
         # switches back.
-        result   = bslib::navset_underline(
+        result   = bslib::navset_card_tab(
           id = ns("full_result_tabs"),
           bslib::nav_panel(
             value = "sections",
-            title = shiny::tagList(shiny::icon("list-ol"), " Sections"),
+            title = "Sections",
             shiny::uiOutput(ns("report_sections_panel"))
           ),
           bslib::nav_panel(
             value = "preview",
-            title = shiny::tagList(shiny::icon("eye"), " Preview"),
+            title = "Preview",
             shiny::uiOutput(ns("full_preview_panel"))
           )
         ),
@@ -252,7 +252,7 @@ report_ui <- function(id) {
     # ── Custom Report pill ────────────────────────────────────────────────────
     bslib::nav_panel(
       value = "custom_report",
-      title = shiny::tagList(shiny::icon("layer-group"), " Custom Report"),
+      title = "Custom Report",
 
       # Three panes like every other page. The item list is the artefact this
       # page produces, so it belongs in the centre with its actions in a
@@ -292,16 +292,16 @@ report_ui <- function(id) {
         # Two artefacts, so two tabs: the item list the user curates, and the
         # in-app preview of the report built from it (§E12). Generating a
         # preview switches to its tab; closing it switches back.
-        result   = bslib::navset_underline(
+        result   = bslib::navset_card_tab(
           id = ns("custom_result_tabs"),
           bslib::nav_panel(
             value = "items",
-            title = shiny::tagList(shiny::icon("list-ol"), " Items"),
+            title = "Items",
             shiny::uiOutput(ns("custom_items_panel"))
           ),
           bslib::nav_panel(
             value = "preview",
-            title = shiny::tagList(shiny::icon("eye"), " Preview"),
+            title = "Preview",
             shiny::uiOutput(ns("custom_preview_panel"))
           )
         ),
@@ -550,18 +550,13 @@ report_server <- function(id, shared_state) {
         ))
       }
 
-      bslib::card(
-        bslib::card_header(shiny::icon("list-ol"), " Sections in this report"),
-        bslib::card_body(
-          # One item per section, so the list scrolls itself rather than the
-          # page. The cap goes on this inner div, never on the card_body.
-          shiny::div(
-            class = "edark-scroll-table",
-            shiny::tags$ol(
-              class = "mb-0",
-              lapply(secs, function(v) shiny::tags$li(v))
-            )
-          )
+      # One item per section, so the list scrolls itself rather than the page.
+      # No card of its own: the Sections card tab is already the frame.
+      shiny::div(
+        class = "edark-scroll-table",
+        shiny::tags$ol(
+          class = "mb-0",
+          lapply(secs, function(v) shiny::tags$li(v))
         )
       )
     })
@@ -903,19 +898,13 @@ report_server <- function(id, shared_state) {
                        variant = "danger", size = "toolbar")
         ),
 
-        bslib::card(
-          bslib::card_header(shiny::icon("list-ol"), " Items in this report"),
-          bslib::card_body(
-            # The cap goes on this inner div, never on the card_body - see the
-            # header comment on .edark-scroll-table in inst/www/edark.css.
-            shiny::div(
-              class = "edark-scroll-table",
-              lapply(seq_along(items), function(i) {
-                .custom_item_row(ns, items[[i]], i,
-                                 selected = identical(i, idx))
-              })
-            )
-          )
+        # No card of its own: the Items card tab is already the frame.
+        shiny::div(
+          class = "edark-scroll-table",
+          lapply(seq_along(items), function(i) {
+            .custom_item_row(ns, items[[i]], i,
+                             selected = identical(i, idx))
+          })
         )
       )
     })

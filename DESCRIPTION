@@ -17,7 +17,7 @@ RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
-    shiny (>= 1.8.0),
+    shiny (>= 1.8.1),
     bslib (>= 0.7.0),
     shinyjs,
     shinyWidgets,
@@ -28,7 +28,7 @@ Imports:
     lubridate,
     stringr,
     forcats,
-    ggplot2,
+    ggplot2 (>= 4.0.0),
     scales,
     ggpubr,
     ggthemes,

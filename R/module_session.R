@@ -23,7 +23,7 @@ NULL
 session_ui <- function(id) {
   ns <- shiny::NS(id)
   bslib::nav_menu(
-    title = shiny::tagList(shiny::icon("floppy-disk"), " Session"),
+    title = "Session",
     value = "session_menu",
     align = "right",
     bslib::nav_item(

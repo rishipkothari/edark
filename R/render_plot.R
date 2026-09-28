@@ -601,7 +601,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
         data        = cor_df,
         ggplot2::aes(x = x_pos, y = y_pos, label = label),
         size        = 3, colour = "grey30", hjust = 1,
-        fill        = "white", label.colour = "#cccccc", label.size = 0.3,
+        fill        = "white", border.colour = "#cccccc", linewidth = 0.3,
         label.padding = ggplot2::unit(0.3, "lines"),
         inherit.aes = FALSE
       ) +
@@ -623,7 +623,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
         data        = label_df,
         ggplot2::aes(x = x_pos, y = y_pos, label = label),
         size        = 3.5, colour = "grey30", hjust = 1,
-        fill        = "white", label.colour = "#cccccc", label.size = 0.3,
+        fill        = "white", border.colour = "#cccccc", linewidth = 0.3,
         label.padding = ggplot2::unit(0.3, "lines"),
         inherit.aes = FALSE
       )

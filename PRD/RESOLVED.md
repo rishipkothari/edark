@@ -12,6 +12,42 @@ Consult this file when a bug smells familiar, before re-deriving a fix.
 
 ## Prepare
 
+### 2026-09-28 - row filter UI: slider, far-off Add button, tiny level buttons
+
+Three TO-DOs on Prepare > Row Filters. The numeric slider's steps were arbitrary and hard to
+land on a clinical cut-off; it is now a Lower limit / Upper limit pair of `numericInput`s
+(`updateOn = "blur"`), prefilled with the observed range, with the original range printed
+under them (and the post-transform range when it differs, since the filter acts on the
+working values). Lower above upper is accepted and flagged in the messages area
+(`.build_prepare_warnings()`), not silently swapped. The Add button now sits in a flex row
+against the picker (the picker's container margin is zeroed so they bottom-align). Level
+buttons are full size with a 3rem minimum width and wrap (`.edark-filter-levels`).
+
+Found on the way: `output$active_filters` re-rendered every card on every value edit, so
+tabbing from Lower to Upper lost focus as soon as Lower was sent. It now re-renders only when
+the set of filtered columns changes (a `reactiveVal`, which only invalidates on a new value)
+or on `revert_trigger`, reading the values with `isolate()`.
+
+### 2026-09-28 - winsorize boxes validated on every keystroke
+
+The clamp added on 2026-09-25 (below) ran on each debounced change, so typing "95" sent "9"
+and the box was rewritten under the cursor. Both boxes now use `updateOn = "blur"` (shiny
+>= 1.8.1, DESCRIPTION bumped): the value is sent on blur or Enter only. The cut-points
+Breakpoints and Level labels boxes got the same treatment. That exposed a second problem: the
+per-column config `renderUI` depended on the whole spec, so every blur rebuilt the boxes (and
+re-sorted the breakpoints under the user). It now isolates the spec and re-renders only on a
+method change or `revert_trigger`. **Durable rule: §N**
+(numericInput note, Prepare section).
+
+### 2026-09-28 - Columns table spanned the pane; transformed mark was a glyph
+
+The Include column was a third of the pane wide because `checkboxInput()` wraps itself in a
+`.shiny-input-container` with a default `width: 300px`. `.edark-checkbox-cell` now sets it to
+auto, and the table is `.edark-autofit-table` (content width, all cells left-aligned). The
+transformed mark, a leading arrow drawn on the type badge, is now a separate "T" badge
+(`edark_transformed_badge()`), also shown for transforms that keep the type (log,
+standardize ...) and in the Data Preview headers. **Durable rule: §N badges note.**
+
 ### 2026-09-25 - the custom-report modal had no way out from Prepare
 
 With items queued in the custom report, "Custom Report Will Use the Changed Data" fired on
@@ -67,6 +103,13 @@ filter whose `type` disagrees with the column as a backstop.
 
 ## Explore
 
+### 2026-09-28 - "Ignoring unknown parameters: `label.colour`" on numeric x numeric plots
+
+ggplot2 4.0 renamed `geom_label(label.colour =)` to `border.colour` and deprecated
+`label.size` for `linewidth`. Both calls in `.plot_scatter_loess()` use the new names and
+DESCRIPTION now requires `ggplot2 (>= 4.0.0)`. Verified both the plain and stratified paths
+render with `options(warn = 2)`.
+
 ### 2026-09-25 - report progress bar filled twice for Word and PowerPoint
 
 Full Report counted to n twice for Word and PowerPoint ("Variable i of n", then
@@ -118,11 +161,28 @@ Two things worth knowing:
 
 ## Analyze
 
-_Nothing closed yet._
+### 2026-09-28 - Model > Summary info pane: "Text to be written must be a length-one character vector"
+
+`output$summary_info_ui` called `compute_complete_cases(spec, adata)` - arguments swapped
+(the signature is `(data, variables)`), and the function returns a list, not a count, so
+`format()` produced a length-2 character vector that htmltools refused to write. The
+`tryCatch` did not catch it because the error happened later, at render. Now counts rows of
+`compute_complete_cases(analysis_model_data(spec, adata), vars)$data` over outcome, exposure,
+final covariates and (mixed models) cluster variables. Verified with `testServer`.
+Lesson: a `tryCatch` around a value only guards computing it, not rendering it.
 
 ---
 
 ## Other
+
+### 2026-09-28 - icons in navigation, three tab styles in the main panel
+
+Every navbar tab, page pill and Report tab carried a decorative Font Awesome icon, and the
+main panel drew tabs three ways: pills (Prepare), underline (Report Sections / Preview) and
+card tabs (Analyze). Icons removed from all nav titles (state glyphs - lock, done check -
+stay); Prepare and both Report result navsets are now `navset_card_tab`, and the cards that
+sat inside them (column manager, transform table, report section / item lists) are flattened
+so there is no box in a box. **Durable rule: `PRD/NOTE_UI-principles.md` > Task separation.**
 
 ### 2026-09-28 - session save / load on click (branch `session-manager-v1`)
 

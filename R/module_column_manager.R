@@ -15,22 +15,19 @@ NULL
 column_manager_ui <- function(id) {
   ns <- shiny::NS(id)
 
-  bslib::card(
-    bslib::card_header(
-      shiny::icon("table-columns"), " Columns",
-      shiny::actionLink(ns("select_all"),   "Select all",   class = "ms-3 small"),
-      shiny::actionLink(ns("deselect_all"), "Clear", class = "ms-2 small")
+  # Plain content, not a card: Prepare's pages already sit in a card tab
+  # (level 4, inst/www/edark.css section 3), so a card here was a box in a box.
+  shiny::tagList(
+    shiny::div(
+      class = "mb-2 small",
+      shiny::actionLink(ns("select_all"),   "Select all"),
+      shiny::actionLink(ns("deselect_all"), "Clear", class = "ms-3")
     ),
-    bslib::card_body(
-      class = "p-0",
-      # Scroll the rows, not the page, so "Select all" and the header stay put
-      # however many columns the dataset has (§BUILD_UI-redesign 2.6). The cap
-      # goes on this inner div, never on the card_body - see .edark-scroll-table
-      # in inst/www/edark.css for why.
-      shiny::div(
-        class = "edark-scroll-table",
-        shiny::uiOutput(ns("column_table"))
-      )
+    # Scroll the rows, not the page, so "Select all" and the header stay put
+    # however many columns the dataset has (§BUILD_UI-redesign 2.6).
+    shiny::div(
+      class = "edark-scroll-table",
+      shiny::uiOutput(ns("column_table"))
     )
   )
 }
@@ -50,14 +47,17 @@ column_manager_server <- function(id, shared_state) {
       included   <- shared_state$included_columns
 
       current_types <- shared_state$column_types
+      # Applied, not staged: the badge sits beside Curr. type, which is applied.
+      # Covers transforms that keep the type (log, winsorize, standardize ...).
+      applied_tx    <- names(shared_state$last_applied_specs$column_transform_specs)
 
       header <- shiny::tags$thead(
         shiny::tags$tr(
-          shiny::tags$th(class = "text-center ps-2", style = "width:55px;",  "Include"),
-          shiny::tags$th(style = "width:120px;", "Column name"),
-          shiny::tags$th(class = "text-end pe-2", style = "width:60px;",    "Unique"),
-          shiny::tags$th(style = "width:85px;",  "Orig. type"),
-          shiny::tags$th(style = "width:85px;",  "Curr. type")
+          shiny::tags$th(class = "ps-2", "Include"),
+          shiny::tags$th("Column name"),
+          shiny::tags$th("Unique"),
+          shiny::tags$th("Orig. type"),
+          shiny::tags$th("Curr. type")
         )
       )
 
@@ -70,12 +70,12 @@ column_manager_server <- function(id, shared_state) {
 
         shiny::tags$tr(
           shiny::tags$td(
-            class = "edark-checkbox-cell text-center ps-2 py-0",
+            class = "edark-checkbox-cell ps-2 py-0",
             shiny::checkboxInput(ns(paste0("include_", col)), label = NULL, value = is_included)
           ),
           shiny::tags$td(class = "py-1 align-middle small fw-semibold", col),
           shiny::tags$td(
-            class = "py-1 align-middle text-end pe-2 text-muted small",
+            class = "py-1 align-middle text-muted small",
             format(n_unique, big.mark = ",")
           ),
           shiny::tags$td(
@@ -84,13 +84,14 @@ column_manager_server <- function(id, shared_state) {
           ),
           shiny::tags$td(
             class = "py-1 align-middle",
-            edark_type_badge(curr_type, changed = type_changed)
+            edark_type_badge(curr_type, transformed = type_changed || col %in% applied_tx)
           )
         )
       })
 
+      # Autofit: as wide as its content, left-aligned, not stretched to the pane.
       shiny::tags$table(
-        class = "table table-sm table-hover align-middle mb-0",
+        class = "table table-sm table-hover align-middle mb-0 edark-autofit-table",
         header,
         shiny::tags$tbody(rows)
       )

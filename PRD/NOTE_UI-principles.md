@@ -170,6 +170,16 @@ Two placements, one visual family: same active colour, same weight, different si
 level of navigation one look and keep it - an app that draws the same idea three ways makes
 the user re-learn the layout on every page.
 
+**Tabs inside the main panel are always card tabs** (`bslib::navset_card_tab`) - Prepare's
+Columns / Transforms / Row Filters / Data Preview, Report's Sections / Preview, and every
+Analyze result view alike. Pills and underline tabs belong above or beside the panes, never in
+the result slot.
+
+**Navigation labels are text only.** No icons or emoji in navbar tabs, pills, sub-steps or
+card tabs - they add noise, compete with the label and drift out of step with each other. The
+one exception is a *state* glyph put on by the server (the lock on a locked step, the check on
+a done step), because it carries information the text does not.
+
 ---
 
 ## Defaults

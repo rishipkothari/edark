@@ -151,35 +151,6 @@ main-specific questions.
 - session autosave (save / load on click is built on `session-manager-v1`, §M8) - evaluate the cost of building + writing a session on every change first; resume prompt on or inside the splash card (§M8.9)
 - Propensity score weighted/adjusted/matched models
 - Alternative plot types per variable combination (heat map, balloon plot, etc.) (plot 3 vars in 2 dimensions or new types of plots for existing 2 vars)
-- change warning color
-- extra badge for transformed, not a character in front of the badge
-- winsorize data validation not on change, on lose focus
-- scale up the entire splash screen by double
-- analyze - model - RHS pane default text is: "Error: Text to be written must be a length-one character vector"
-                Warning: Error in writeImpl: Text to be written must be a length-one character vector
-                125: stop
-                124: writeImpl
-                123: textWriter$write
-                122: tagWrite
-                121: FUN
-                120: lapply
-                119: tagWrite
-                118: doRenderTags
-                117: processDeps
-                116: transform
-                115: func
-                113: f
-                112: Reduce
-                103: do
-                102: hybrid_chain
-                101: renderFunc
-                99: output$analysis_main-modelspec-summary_info_ui
-                    1: shiny::runApp
-- remove emojis from all tabs, pills, substeps; add guidance to ui principles; same line, main panel tab style in analyze look different than explore report than prepare transforms[]
-- include column in prepare columns is too wide - in general, this table should be autofit and left justified across the board, it spans too wide
-- when plotting correlate relationship between two numeric variables, error:
-    Warning in ggplot2::geom_label(data = label_df, ggplot2::aes(x = x_pos,  :
-    Ignoring unknown parameters: `label.colour`
 
 ### Prepare
 

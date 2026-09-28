@@ -81,14 +81,9 @@ transform_variables_server <- function(id, shared_state) {
       ds    <- shiny::isolate(shared_state$dataset_original)
 
       if (length(cols) == 0) {
-        return(bslib::card(
-          bslib::card_body(
-            shiny::tags$p(
-              class = "text-muted small mb-0",
-              shiny::icon("circle-info"),
-              " No numeric columns available. Include numeric columns in the Columns tab."
-            )
-          )
+        return(shiny::tags$p(
+          class = "text-muted small mb-0",
+          "No numeric columns available. Include numeric columns in the Columns tab."
         ))
       }
 
@@ -127,21 +122,15 @@ transform_variables_server <- function(id, shared_state) {
         )
       })
 
-      bslib::card(
-        bslib::card_body(
-          class = "p-0",
-          # One row per numeric column, so the header scrolls away without
-          # containment (§BUILD_UI-redesign 2.6). The cap goes on this inner
-          # div, never on the card_body - see .edark-scroll-table in
-          # inst/www/edark.css for why.
-          shiny::div(
-            class = "edark-scroll-table",
-            shiny::tags$table(
-              class = "table table-sm table-hover align-middle mb-0",
-              header,
-              shiny::tags$tbody(rows)
-            )
-          )
+      # One row per numeric column, so the header scrolls away without
+      # containment (§BUILD_UI-redesign 2.6). No card of its own: Prepare's
+      # pages already sit in a card tab.
+      shiny::div(
+        class = "edark-scroll-table",
+        shiny::tags$table(
+          class = "table table-sm table-hover align-middle mb-0",
+          header,
+          shiny::tags$tbody(rows)
         )
       )
     })
@@ -163,19 +152,26 @@ transform_variables_server <- function(id, shared_state) {
             if (is.null(method) || method %in% c("none", "auto", "standardize"))
               return(NULL)
 
-            specs <- shared_state$column_transform_specs
+            # Values are isolated: re-rendering on every spec write rebuilt the
+            # boxes on each blur, so Tab from Breakpoints to Labels lost focus.
+            # revert_trigger (Reset, session load) still refreshes them.
+            shared_state$revert_trigger
+            specs <- shiny::isolate(shared_state$column_transform_specs)
             spec  <- specs[[.col]]
 
             if (identical(method, "cutpoints")) {
               bp_val  <- if (!is.null(spec$breakpoints) && length(spec$breakpoints) > 0)
                            paste(spec$breakpoints, collapse = ", ") else ""
               lbl_val <- if (!is.null(spec$labels)) paste(spec$labels, collapse = ", ") else ""
+              # updateOn = "blur" on both boxes: sent on blur or Enter, so a
+              # half-typed list ("18, 4") is never validated mid-edit.
               return(shiny::tagList(
                 shiny::textInput(
                   ns(paste0("bp_", .col)),
                   label       = "Breakpoints (comma-separated):",
                   placeholder = "e.g. 18, 40, 65",
-                  value       = bp_val
+                  value       = bp_val,
+                  updateOn    = "blur"
                 ),
                 shiny::div(
                   class = "mb-2",
@@ -191,7 +187,8 @@ transform_variables_server <- function(id, shared_state) {
                   ns(paste0("lbl_", .col)),
                   label       = "Level labels (optional - defaults to numeric ranges):",
                   placeholder = "e.g. Young, Middle, Old",
-                  value       = lbl_val
+                  value       = lbl_val,
+                  updateOn    = "blur"
                 )
               ))
             }
@@ -216,7 +213,7 @@ transform_variables_server <- function(id, shared_state) {
                     label = "Lower percentile:",
                     value = lo_val,
                     min = EDARK_WINSOR_MIN, max = EDARK_WINSOR_MAX - 1,
-                    step = 0.5
+                    step = 0.5, updateOn = "blur"
                   )
                 ),
                 shiny::column(6,
@@ -228,7 +225,7 @@ transform_variables_server <- function(id, shared_state) {
                     # into an empty interval; the observers below enforce it for
                     # typed input, which ignores min/max (see NOTE_implementation).
                     min = lo_val + 1, max = EDARK_WINSOR_MAX,
-                    step = 0.5
+                    step = 0.5, updateOn = "blur"
                   )
                 )
               ))

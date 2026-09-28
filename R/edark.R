@@ -105,31 +105,31 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
     # ── Tab 1: Prepare ───────────────────────────────────────────────────────
     bslib::nav_panel(
       value = "prepare",
-      title = shiny::tagList(shiny::icon("sliders"), " 1 \u00b7 Prepare"),
+      title = "1 \u00b7 Prepare",
       edark_page(
         config   = prepare_confirm_ui("prepare_confirm"),
         messages = prepare_confirm_messages_ui("prepare_confirm"),
         info     = prepare_confirm_info_ui("prepare_confirm"),
-        result   = bslib::navset_pill(
+        result   = bslib::navset_card_tab(
           id = "prepare_tabs",
           bslib::nav_panel(
             value = "columns",
-            title = shiny::tagList(shiny::icon("table-columns"), " Columns"),
+            title = "Columns",
             column_manager_ui("column_manager")
           ),
           bslib::nav_panel(
             value = "transforms",
-            title = shiny::tagList(shiny::icon("wand-magic-sparkles"), " Transforms"),
+            title = "Transforms",
             transform_variables_ui("transform_variables")
           ),
           bslib::nav_panel(
             value = "filters",
-            title = shiny::tagList(shiny::icon("filter"), " Row Filters"),
+            title = "Row Filters",
             row_filter_ui("row_filter")
           ),
           bslib::nav_panel(
             value = "preview",
-            title = shiny::tagList(shiny::icon("eye"), " Data Preview"),
+            title = "Data Preview",
             data_preview_ui("data_preview")
           )
         )
@@ -139,12 +139,12 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
     # ── Tab 2: Explore ───────────────────────────────────────────────────────
     bslib::nav_panel(
       value = "explore",
-      title = shiny::tagList(shiny::icon("magnifying-glass-chart"), " 2 \u00b7 Explore"),
+      title = "2 \u00b7 Explore",
       bslib::navset_pill(
         id = "explore_tabs",
         bslib::nav_panel(
           value = "plot",
-          title = shiny::tagList(shiny::icon("chart-area"), " Explore Data"),
+          title = "Explore Data",
           edark_page(
             config = shiny::tagList(
               # Describe / Correlate / Trend are modes: each stages its own
@@ -174,7 +174,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
         ),
         bslib::nav_panel(
           value = "report",
-          title = shiny::tagList(shiny::icon("file-export"), " Report"),
+          title = "Report",
           report_ui("report")
         ),
         # A settings page, not a mode of the plot: no config pane, no result,
@@ -182,7 +182,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
         # "Settings" later, which is why it is a page rather than a panel.
         bslib::nav_panel(
           value = "appearance",
-          title = shiny::tagList(shiny::icon("palette"), " Appearance"),
+          title = "Appearance",
           appearance_page_ui("appearance_controls")
         )
       )
@@ -191,7 +191,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
     # ── Tab 3: Analyze ───────────────────────────────────────────────────────
     bslib::nav_panel(
       value = "analyze",
-      title = shiny::tagList(shiny::icon("chart-simple"), " 3 \u00b7 Analyze"),
+      title = "3 \u00b7 Analyze",
       analysis_main_ui("analysis_main")
     ),
 

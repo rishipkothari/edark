@@ -124,7 +124,8 @@
      2   page           pills, with stepper states in Analyze
      3a  mode of a page pills, lighter, at the top of the config pane
      3b  sub-step       underline tabs across the page
-     4   result view    card tabs
+     4   result view    card tabs - every tab row inside a page's main panel,
+                        including Prepare's Columns / Transforms / ... row
    ========================================================================== */
 
 /* --- Level 1: the navbar --------------------------------------------------
@@ -371,15 +372,15 @@
   padding: 0.35em 0.65em;
 }
 
-/* A type the Prepare pipeline cast away from the original. This was an amber
-   ring, which read as a warning and put the app's loudest colour in a table
-   cell; the badge now keeps the type's own colour and gains an arrow, so it
-   says "cast to factor" rather than "something is wrong with factor". The
-   meaning in words is on the badge's title attribute (edark_type_badge()). */
-.edark-badge-changed::before {
-  content: "\2192\00a0";
-  opacity: 0.8;
-  font-weight: 600;
+/* A column the Prepare pipeline transformed (edark_transformed_badge()). Its
+   own badge beside the type rather than a glyph on the type badge, in the
+   same tint the Data Preview uses for transformed columns - not amber, which
+   would read as a warning. The meaning in words is on the title attribute. */
+.edark-badge-transformed {
+  background-color: var(--edark-tint-bg);
+  color: var(--edark-tint-fg);
+  border: 1px solid var(--edark-tint-fg);
+  font-weight: 700;
 }
 
 .edark-section-label {
@@ -584,7 +585,49 @@
 .edark-checkbox-cell .form-check {
   margin-bottom: 0 !important;
   display: flex !important;
-  justify-content: center !important;
+  justify-content: flex-start !important;
+}
+
+/* checkboxInput() wraps itself in a .shiny-input-container that defaults to
+   width: 300px, which is what made the Include column span a third of the
+   pane. Let it shrink to the checkbox. */
+.edark-checkbox-cell .shiny-input-container {
+  width: auto !important;
+  margin-bottom: 0;
+}
+
+/* Prepare > Row Filters: a flex row of inputs. An input container carries a
+   bottom margin, which would sit the Add button 15px low beside the picker
+   and leave a gap under the lower / upper limit boxes. */
+.edark-filter-add .shiny-input-container,
+.edark-filter-add .form-group {
+  margin-bottom: 0;
+}
+
+/* Level buttons are the click target for keeping a level - a single-digit
+   level at btn-sm was a ~20px target. Wrap rather than run off the card. */
+.edark-filter-levels .btn-group {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.edark-filter-levels .btn {
+  min-width: 3rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--bs-border-radius) !important;
+}
+
+/* A one-row-per-variable table sized to its content and left-aligned, rather
+   than stretched across the pane with its values floating in wide columns. */
+.edark-autofit-table {
+  width: auto;
+}
+
+.edark-autofit-table th,
+.edark-autofit-table td {
+  text-align: left;
+  padding-right: 1.25rem;
+  white-space: nowrap;
 }
 
 .edark-checkbox-cell .form-check-input {

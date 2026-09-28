@@ -93,8 +93,8 @@ An invalid transform is flagged in the Apply panel (§P7.1). Apply and sub-tab s
 ## P6 — Row Filters
 
 - **Add filter:** pick any included column; a filter card is added for it.
-- **Numeric columns:** range slider (min / max) within the observed data range.
-- **Factor / character columns:** choose which levels to keep; all selected by default.
+- **Numeric columns:** lower and upper limit boxes (inclusive; sent on blur or Enter), prefilled with the observed range, with the column's original range shown for context (and the post-transform range when it differs). Lower above upper is allowed but flagged in the messages area (it keeps no rows).
+- **Factor / character columns:** choose which levels to keep (full-size toggle buttons that wrap); all selected by default.
 - Filters combine with **AND**.
 - Filters can be changed or removed at any time before Apply.
 - A filter on a column that is excluded, or that has a transform staged, is removed on Apply with a warning (its levels or range would no longer match the transformed column).

@@ -391,23 +391,42 @@ edark_badge <- function(text, role = "neutral", size = c("sm", "md"),
 #' same everywhere.
 #'
 #' @param type Character. A `detect_column_types()` value.
-#' @param changed Logical. TRUE marks a type the Prepare pipeline has cast away
-#'   from the original; it keeps the type's own colour and gains a leading
-#'   arrow (`.edark-badge-changed` in edark.css), so the cast reads as a
-#'   direction rather than as a warning.
+#' @param transformed Logical. TRUE marks a column the Prepare pipeline has
+#'   transformed (cast to a new type, or rescaled in place). The type badge is
+#'   untouched and a separate "T" badge (`edark_transformed_badge()`) follows
+#'   it, so the mark reads as a fact rather than as part of the type.
+#'
+#' @return A `htmltools::tags$span`, or a tag list of two when transformed.
+#' @keywords internal
+#' @noRd
+edark_type_badge <- function(type, transformed = FALSE) {
+  if (is.null(type) || length(type) != 1L || is.na(type)) {
+    return(edark_badge("-", role = "muted"))
+  }
+  badge <- edark_badge(
+    type,
+    role = if (type %in% names(.EDARK_BADGE_VARIANT)) type else "muted"
+  )
+  if (!isTRUE(transformed)) return(badge)
+  htmltools::tagList(badge, edark_transformed_badge())
+}
+
+
+#' The "transformed" mark, as its own small badge
+#'
+#' One letter in the Prepare tint (`.edark-badge-transformed` in edark.css),
+#' with the meaning in words on its title. Used beside a type badge and in the
+#' Data Preview column headers, so "the pipeline touched this" is one mark
+#' everywhere.
 #'
 #' @return A `htmltools::tags$span`.
 #' @keywords internal
 #' @noRd
-edark_type_badge <- function(type, changed = FALSE) {
-  if (is.null(type) || length(type) != 1L || is.na(type)) {
-    return(edark_badge("-", role = "muted"))
-  }
-  edark_badge(
-    type,
-    role  = if (type %in% names(.EDARK_BADGE_VARIANT)) type else "muted",
-    class = if (isTRUE(changed)) "edark-badge-changed" else NULL,
-    title = if (isTRUE(changed)) "Cast by the Prepare pipeline" else NULL
+edark_transformed_badge <- function() {
+  htmltools::tags$span(
+    class = "badge edark-badge edark-badge-sm edark-badge-transformed ms-1",
+    title = "Transformed by the Prepare pipeline",
+    "T"
   )
 }
 

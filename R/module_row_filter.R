@@ -1,8 +1,9 @@
 #' Row Filter Module
 #'
 #' Allows the user to add row-filter criteria against any included column.
-#' Numeric columns get a min/max range slider; factor/character columns get a
-#' checkbox group of levels to retain. Multiple filters compose with AND logic.
+#' Numeric columns get lower / upper limit boxes (with the column's original
+#' range for context); factor/character columns get a button group of levels
+#' to retain. Multiple filters compose with AND logic.
 #' All filters are staged — nothing is applied until "Apply & Proceed".
 #'
 #' @param id Character. The module namespace ID.
@@ -18,15 +19,13 @@ row_filter_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    # Add-filter controls
-    shiny::fluidRow(
-      class = "mb-3",
-      shiny::column(8, shiny::uiOutput(ns("column_picker"))),
-      shiny::column(4,
-        shiny::br(),
-        edark_button(ns, "add_filter", "Add filter", icon = "plus",
-                     outline = TRUE)
-      )
+    # Add-filter controls - the button sits against the picker it acts on,
+    # bottom-aligned with the picker's box rather than its label.
+    shiny::div(
+      class = "d-flex align-items-end gap-2 mb-3 edark-filter-add",
+      shiny::div(style = "width: 280px;", shiny::uiOutput(ns("column_picker"))),
+      edark_button(ns, "add_filter", "Add filter", icon = "plus",
+                   outline = TRUE, size = "dialog")
     ),
 
     # The live row count is a fact about the result, so it lives in Prepare's
@@ -103,18 +102,27 @@ row_filter_server <- function(id, shared_state) {
 
 
     # ── Render filter cards ───────────────────────────────────────────────────
+    # Re-render only when the set of filtered columns changes, or on a revert /
+    # session load - not on every edit of a filter's values. Re-rendering on
+    # each edit rebuilt every card, so tabbing from Lower to Upper lost focus
+    # the moment Lower was sent. A reactiveVal only invalidates on a new value.
+    filter_cols <- shiny::reactiveVal(character(0))
+    shiny::observe(filter_cols(names(shared_state$row_filter_specs)))
+
     output$active_filters <- shiny::renderUI({
-      specs <- shared_state$row_filter_specs
-      if (length(specs) == 0) {
+      cols <- filter_cols()
+      shared_state$revert_trigger
+      specs <- shiny::isolate(shared_state$row_filter_specs)
+      orig  <- shiny::isolate(shared_state$dataset_original)
+      if (length(cols) == 0) {
         return(shiny::tags$p(
           class = "text-muted small",
           "No filters added yet. Select a column above and click Add filter."
         ))
       }
 
-      lapply(names(specs), function(col) {
-        spec <- specs[[col]]
-        .render_filter_widget(ns, col, spec)
+      lapply(cols, function(col) {
+        .render_filter_widget(ns, col, specs[[col]], orig[[col]])
       })
     })
 
@@ -133,16 +141,21 @@ row_filter_server <- function(id, shared_state) {
           col_type <- specs[[.col]]$type
 
           if (col_type == "numeric") {
-            shiny::observeEvent(input[[paste0("range_", .col)]], {
-              val <- input[[paste0("range_", .col)]]
-              s   <- shared_state$row_filter_specs
-              if (!is.null(s[[.col]]) && !is.null(val)) {
-                s[[.col]]$min                <- val[1]
-                s[[.col]]$max                <- val[2]
-                shared_state$row_filter_specs    <- s
-                shared_state$has_pending_changes <- TRUE
-              }
-            }, ignoreNULL = TRUE, ignoreInit = TRUE)
+            # One observer per bound. An empty box (NA) leaves the bound as it
+            # was; lower > upper is allowed here and flagged in the messages
+            # area (.build_prepare_warnings()), not silently swapped.
+            Map(function(prefix, field) {
+              shiny::observeEvent(input[[paste0(prefix, .col)]], {
+                val <- suppressWarnings(as.numeric(input[[paste0(prefix, .col)]]))
+                s   <- shared_state$row_filter_specs
+                if (length(val) != 1L || is.na(val) || is.null(s[[.col]])) return()
+                if (!identical(s[[.col]][[field]], val)) {
+                  s[[.col]][[field]]               <- val
+                  shared_state$row_filter_specs    <- s
+                  shared_state$has_pending_changes <- TRUE
+                }
+              }, ignoreNULL = TRUE, ignoreInit = TRUE)
+            }, c("lo_", "hi_"), c("min", "max"))
 
           } else {
             shiny::observeEvent(input[[paste0("levels_", .col)]], {
@@ -201,7 +214,14 @@ row_filter_server <- function(id, shared_state) {
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-.render_filter_widget <- function(ns, col, spec) {
+.fmt_filter_num <- function(x) {
+  format(signif(x, 6), big.mark = ",", scientific = FALSE, trim = TRUE)
+}
+
+# `orig` is the column in dataset_original, shown as context for a numeric
+# filter. The filter itself acts on the working (possibly transformed) values,
+# so when the two ranges differ both are shown.
+.render_filter_widget <- function(ns, col, spec, orig = NULL) {
   remove_btn <- shiny::actionLink(
     ns(paste0("remove_filter_", col)),
     label = shiny::icon("xmark"),
@@ -209,22 +229,44 @@ row_filter_server <- function(id, shared_state) {
   )
 
   widget <- if (spec$type == "numeric") {
-    shiny::sliderInput(
-      ns(paste0("range_", col)),
-      label = NULL,
-      min   = spec$data_min,
-      max   = spec$data_max,
-      value = c(spec$min, spec$max),
-      width = "100%"
+    range_txt <- function(lo, hi) paste(.fmt_filter_num(lo), "to", .fmt_filter_num(hi))
+    context <- if (is.numeric(orig) && any(!is.na(orig))) {
+      o_lo <- min(orig, na.rm = TRUE)
+      o_hi <- max(orig, na.rm = TRUE)
+      txt  <- paste0("Original range: ", range_txt(o_lo, o_hi))
+      if (!isTRUE(all.equal(c(o_lo, o_hi), c(spec$data_min, spec$data_max))))
+        txt <- paste0(txt, "; after transforms: ", range_txt(spec$data_min, spec$data_max))
+      txt
+    } else {
+      paste0("Range: ", range_txt(spec$data_min, spec$data_max))
+    }
+
+    shiny::tagList(
+      shiny::div(
+        class = "d-flex flex-wrap align-items-end gap-3 mb-2 edark-filter-add",
+        # updateOn = "blur": sent on blur or Enter, not per keystroke, so a
+        # half-typed number never lands in the spec.
+        shiny::numericInput(ns(paste0("lo_", col)), "Lower limit",
+                            value = spec$min, width = "160px", updateOn = "blur"),
+        shiny::numericInput(ns(paste0("hi_", col)), "Upper limit",
+                            value = spec$max, width = "160px", updateOn = "blur")
+      ),
+      shiny::tags$p(
+        class = "small text-muted mb-0",
+        paste0(context, ". Rows from lower to upper (inclusive) are kept; ",
+               "missing values are dropped.")
+      )
     )
   } else {
-    shinyWidgets::checkboxGroupButtons(
-      ns(paste0("levels_", col)),
-      label     = NULL,
-      choices   = spec$levels_all,
-      selected  = spec$levels_selected,
-      size      = "sm",
-      direction = "horizontal"
+    shiny::div(
+      class = "edark-filter-levels",
+      shinyWidgets::checkboxGroupButtons(
+        ns(paste0("levels_", col)),
+        label     = NULL,
+        choices   = spec$levels_all,
+        selected  = spec$levels_selected,
+        direction = "horizontal"
+      )
     )
   }
 

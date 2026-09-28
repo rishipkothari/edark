@@ -543,6 +543,18 @@ apply_prepare_pipeline <- function(shared_state) {
     }
   }
 
+  # Group 2b: numeric filters whose lower limit is above the upper - they keep
+  # no rows. The boxes accept it (swapping would move a number under the user),
+  # so this is where it is caught.
+  inverted <- names(Filter(function(f) identical(f$type, "numeric") &&
+                             isTRUE(f$min > f$max), filters))
+  if (length(inverted) > 0) {
+    groups <- c(groups, list(list(
+      title = "Row filter lower limit is above the upper limit - no rows will pass:",
+      items = as.list(inverted)
+    )))
+  }
+
   # Group 3: transform validation issues (only for pending transforms)
   if (length(specs) > 0) {
     last_tx <- if (!is.null(last_applied$column_transform_specs))
