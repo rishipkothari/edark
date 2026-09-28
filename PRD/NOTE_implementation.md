@@ -178,6 +178,15 @@ Returns class `edark_two_panel` (`$left` / `$right`). With `split_panels = FALSE
 ### N4.7 Legend suppression
 Applied in `module_explore_output.R` after `current_plot()` returns (not inside the plot function): `violin_jitter` always; `scatter_loess` when stratified.
 
+### N4.8 Each Explore mode publishes every field it owns
+Describe and Correlate write the same `shared_state` fields (`primary_variable`,
+`stratify_variable`, `bar_display`, ...), so whichever wrote last wins and a pill switch
+leaves the other pill's values behind. Each server in `module_explore_controls.R` has a
+`publish_state()` that writes **all** of its fields from its own inputs and nulls the ones
+it does not own (Describe clears `secondary_variable`), called both when `active_mode()`
+becomes its own id and again on its Plot button. Add a field to one mode and it must be
+added to both `publish_state()` bodies - set it or clear it - or the leftover comes back.
+
 ---
 
 ## N5 — Report Internals
