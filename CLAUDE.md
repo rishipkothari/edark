@@ -154,6 +154,7 @@ main-specific questions.
 - extra badge for transformed, not a character in front of the badge
 - winsorize data validation not on change, on lose focus
 - scale up the entire splash screen by double
+- analyze - model - RHS pane default "Error: Text to be written must be a length-one character vector"
 
 ### Prepare
 

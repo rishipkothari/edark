@@ -217,8 +217,9 @@ session_server <- function(id, shared_state, dataset_input, launch_session = NUL
 
       # Custom report: the session's list replaces the current one
       old <- shiny::isolate(shared_state$custom_report_items)
-      old_paths <- unlist(lapply(old, `[[`, "thumb_path"))
-      unlink(old_paths[file.exists(old_paths)])
+      # as.character(): unlist() of no items is NULL, and file.exists(NULL) errors
+      old_paths <- as.character(unlist(lapply(old, `[[`, "thumb_path")))
+      unlink(old_paths[nzchar(old_paths) & file.exists(old_paths)])
       shared_state$custom_report_items <- .session_unpack_items(s$custom_report_items %||% list())
 
       # Analyze: handed to Steps 1 and 4. With no analysis in the session, a
