@@ -4,9 +4,11 @@
 #' dataset, the files that reproduce it, Table 1, variable selection, the
 #' model, diagnostics, performance and a compiled report.
 #'
-#' Page contract (D6): the config pane holds the formats and Build & Download;
-#' the centre is the zip itself as a folder tree, where ticking a file is
-#' selecting it (X12); the info pane counts what the zip will hold. Items whose
+#' Page contract (D6): the config pane holds only Build & Download; the centre
+#' is the zip itself as a folder tree, where ticking a file is selecting it
+#' (X12) and the file's options - data format, report format, the session's
+#' input dataset - sit on its row; the info pane counts what the zip will
+#' hold. Items whose
 #' output has not been created, or is stale, are listed but cannot be ticked
 #' (X9).
 #'
@@ -44,27 +46,14 @@ export_ui <- function(id) {
       # The tree's behaviour and the download trigger (§N8)
       shiny::tags$script(src = "edark/edark_export.js"),
 
-      edark_section_label("Data format", first = TRUE),
-      shiny::radioButtons(ns("data_format"), label = NULL,
-                          choiceNames  = unname(.EXPORT_DATA_FORMATS),
-                          choiceValues = names(.EXPORT_DATA_FORMATS),
-                          selected = "rds"),
-      shiny::tags$p(class = "small text-muted mb-0",
-                    "The working dataset as Prepare left it. RDS keeps column types and factor levels."),
-
-      edark_section_label("Report format"),
-      shiny::radioButtons(ns("report_format"), label = NULL,
-                          choiceNames  = unname(.EXPORT_REPORT_FORMATS),
-                          choiceValues = names(.EXPORT_REPORT_FORMATS),
-                          selected = "docx", inline = TRUE),
-
-      edark_section_label("Session file"),
-      shiny::checkboxInput(ns("session_include_data"), "Include the input dataset", value = FALSE),
-      shiny::tags$p(class = "small text-muted mb-0",
-                    "Includes patient-level data. Only share where your data governance allows."),
-
-      shiny::tags$hr(class = "my-3"),
-      edark_run_button(ns, "btn_build", "Build & Download", icon = "file-zipper")
+      # Everything that is chosen - files, formats, the session's data - is
+      # chosen in the tree, so this pane is only the action (BUILD_Export.md §5)
+      edark_run_button(ns, "btn_build", "Build & Download", icon = "file-zipper"),
+      shiny::tags$p(class = "small text-muted mt-2 mb-0",
+                    "Tick files in the tree; formats are set on their rows."),
+      shiny::tags$p(class = "small text-muted mt-2 mb-0",
+                    "The working dataset, and a session file that includes the input dataset,",
+                    "hold patient-level data. Only share where your data governance allows.")
     ),
     messages = edark_messages_ui(ns),
     result = shiny::tagList(
@@ -163,11 +152,13 @@ export_server <- function(id, shared_state, dataset_input) {
     })
 
     # ── Tree ─────────────────────────────────────────────────────────────────
-    # Re-rendered only when what it shows changes (ids, names, statuses), never
-    # on a tick: ticks live in the browser until the next render (§N8).
+    # Re-rendered only when what it shows changes (ids, statuses), never on a
+    # tick: ticks live in the browser until the next render (§N8). Not on a
+    # format change either - the format selects sit in the tree, and the
+    # browser renames the file on its row (§N8.3).
     tree_key <- shiny::reactiveVal(NULL)
     shiny::observe({
-      key <- items()[, c("id", "file", "status", "reason")]
+      key <- items()[, c("id", "status", "reason")]
       if (!identical(key, shiny::isolate(tree_key()))) tree_key(key)
     })
 
@@ -175,7 +166,12 @@ export_server <- function(id, shared_state, dataset_input) {
       shiny::req(tree_key())
       it <- shiny::isolate(items())
       shiny::isolate(.take_defaults(it))
-      .export_tree(it, shiny::isolate(sel()), shiny::isolate(open_dirs()), ns)
+      opts <- shiny::isolate(list(
+        data_format          = input$data_format %||% "rds",
+        report_format        = input$report_format %||% "docx",
+        session_include_data = isTRUE(input$session_include_data)
+      ))
+      .export_tree(it, shiny::isolate(sel()), shiny::isolate(open_dirs()), ns, opts)
     })
 
     output$tree_header <- shiny::renderUI({
@@ -337,7 +333,12 @@ export_server <- function(id, shared_state, dataset_input) {
         edark_info_row("Working dataset",
                        sprintf("%s \u00d7 %s", format(nrow(wd), big.mark = ","), ncol(wd))),
         edark_info_row("Analyze", analyze_state),
-        edark_info_row("Data format", .EXPORT_DATA_FORMATS[[input$data_format %||% "rds"]]),
+        if (any(sl$kind == "report"))
+          edark_info_row("Report format", .EXPORT_REPORT_FORMATS[[input$report_format %||% "docx"]]),
+        if (any(sl$kind == "data"))
+          edark_info_row("Data format", .EXPORT_DATA_FORMATS[[input$data_format %||% "rds"]]),
+        if (any(sl$kind == "session"))
+          edark_info_row("Session file", if (isTRUE(input$session_include_data)) "With input dataset" else "Without data"),
 
         if (!is.null(b)) shiny::tagList(
           edark_section_label("Last build"),
@@ -359,41 +360,59 @@ export_server <- function(id, shared_state, dataset_input) {
   if (x < 1024^2) sprintf("%.0f KB", x / 1024) else sprintf("%.1f MB", x / 1024^2)
 }
 
-.EXPORT_KIND_ICON <- c(
-  table = "table", figure = "image", notes = "file-lines", data = "database",
-  session = "floppy-disk", text = "file-lines", report = "book", rds = "box", script = "code"
-)
-
-.export_item_icon <- function(item) {
-  k <- switch(item$kind,
-    table1 = , uni_table = , sel_table = , collin_table = , results_table = , fit_stats = ,
-    diag_summary = , diag_table = , perf_summary = , perf_optimism = "table",
-    collin_fig = , forest_plot = , diag_fig = , perf_fig = "figure",
-    notes = , methods = "notes", prepare_steps = "text", result_rds = "rds",
-    item$kind)
-  .EXPORT_KIND_ICON[[k]] %||% "file"
-}
-
 .EXPORT_STATUS_BADGE <- list(
   stale       = list(text = "stale",       role = "changed"),
   not_run     = list(text = "not run",     role = "muted"),
   coming_soon = list(text = "coming soon", role = "neutral")
 )
 
-.export_leaf <- function(item, checked) {
+# A file's own options, on its row: the data and report formats, and whether
+# the session file carries the input dataset. Real Shiny inputs (bound by id),
+# rendered with the server's current value so a re-render keeps them;
+# edark_export.js disables them while their file is unticked and renames the
+# file when its format changes.
+.export_leaf_option <- function(item, ns, opts) {
+  .select <- function(id, choices, selected, stem) {
+    shiny::tags$select(
+      id = ns(id), class = "edark-export-opt form-select form-select-sm",
+      `data-stem` = stem, `aria-label` = paste("Format of", stem),
+      lapply(names(choices), function(v) {
+        shiny::tags$option(value = v, selected = if (identical(v, selected)) NA, choices[[v]])
+      })
+    )
+  }
+  switch(item$kind,
+    data   = .select("data_format", .EXPORT_DATA_FORMATS, opts$data_format, "working_dataset"),
+    report = .select("report_format", .EXPORT_REPORT_FORMATS, opts$report_format, "analysis_report"),
+    session = shiny::tags$label(
+      class = "edark-export-opt-check",
+      title = "Patient-level data. Only share where your data governance allows.",
+      shiny::tags$input(type = "checkbox", id = ns("session_include_data"),
+                        class = "edark-export-opt form-check-input",
+                        checked = if (isTRUE(opts$session_include_data)) NA),
+      "include input dataset"
+    ),
+    NULL
+  )
+}
+
+.export_leaf <- function(item, checked, ns, opts) {
   ok <- identical(item$status, "available")
   bd <- .EXPORT_STATUS_BADGE[[item$status]]
   shiny::tags$li(
     class = paste("edark-export-leaf", if (!ok) "is-unavailable"),
-    shiny::tags$label(
+    shiny::div(
       class = "edark-export-row",
       title = if (!ok) item$reason,
-      shiny::tags$input(type = "checkbox", class = "edark-export-box form-check-input",
-                        `data-id` = item$id,
-                        checked = if (ok && checked) NA,
-                        disabled = if (!ok) NA),
-      shiny::icon(.export_item_icon(item), class = "edark-export-icon"),
-      shiny::span(class = "edark-export-name", item$file),
+      shiny::tags$label(
+        class = "edark-export-pick",
+        shiny::tags$input(type = "checkbox", class = "edark-export-box form-check-input",
+                          `data-id` = item$id,
+                          checked = if (ok && checked) NA,
+                          disabled = if (!ok) NA),
+        shiny::span(class = "edark-export-name", item$file)
+      ),
+      if (ok) .export_leaf_option(item, ns, opts),
       if (!is.null(bd)) edark_badge(bd$text, role = bd$role),
       if (!ok && nzchar(item$reason) && !identical(item$status, "coming_soon"))
         shiny::span(class = "edark-export-reason", item$reason)
@@ -411,7 +430,6 @@ export_server <- function(id, shared_state, dataset_input) {
         class = "edark-export-row",
         shiny::tags$input(type = "checkbox", class = "edark-export-folder-box form-check-input",
                           `aria-label` = paste("Select all in", label)),
-        shiny::icon("folder", class = "edark-export-icon edark-export-folder-icon"),
         shiny::span(class = "edark-export-name", paste0(basename(path), "/")),
         if (!is.null(note)) shiny::span(class = "edark-export-folder-note", note),
         shiny::span(class = "edark-export-count")
@@ -423,8 +441,10 @@ export_server <- function(id, shared_state, dataset_input) {
 
 # The zip as a tree: root files, then one folder per stage with tables/ and
 # figures/ inside. Rendered from the registry; the browser keeps it live.
-.export_tree <- function(it, sel, open_set, ns) {
-  .leaves <- function(rows) lapply(seq_len(nrow(rows)), function(i) .export_leaf(rows[i, ], rows$id[i] %in% sel))
+.export_tree <- function(it, sel, open_set, ns, opts) {
+  .leaves <- function(rows) {
+    lapply(seq_len(nrow(rows)), function(i) .export_leaf(rows[i, ], rows$id[i] %in% sel, ns, opts))
+  }
 
   root_items <- it[it$folder == "", , drop = FALSE]
   folders <- lapply(names(.EXPORT_FOLDERS), function(f) {
@@ -446,25 +466,24 @@ export_server <- function(id, shared_state, dataset_input) {
     shiny::div(
       class = "edark-export-tree-links small mb-2",
       shiny::tags$a(href = "#", `data-export-select` = "all", "Select all"),
-      " \u00b7 ",
+      " · ",
       shiny::tags$a(href = "#", `data-export-select` = "none", "Clear"),
-      " \u00b7 ",
+      " · ",
       shiny::tags$a(href = "#", `data-export-expand` = "all", "Expand all"),
-      " \u00b7 ",
+      " · ",
       shiny::tags$a(href = "#", `data-export-expand` = "none", "Collapse all")
     ),
     shiny::div(class = "edark-export-root",
-               shiny::icon("file-zipper", class = "edark-export-icon"),
                shiny::span(class = "edark-export-name", "edark_export_<date>_<time>.zip")),
     shiny::tags$ul(
       class = "edark-export-list edark-export-top",
       shiny::tags$li(class = "edark-export-leaf is-fixed",
-                     shiny::span(class = "edark-export-row",
-                                 shiny::tags$input(type = "checkbox", class = "form-check-input",
-                                                   checked = NA, disabled = NA),
-                                 shiny::icon("file-lines", class = "edark-export-icon"),
-                                 shiny::span(class = "edark-export-name", "README.txt"),
-                                 shiny::span(class = "edark-export-reason", "always included"))),
+                     shiny::div(class = "edark-export-row",
+                                shiny::tags$label(class = "edark-export-pick",
+                                  shiny::tags$input(type = "checkbox", class = "form-check-input",
+                                                    checked = NA, disabled = NA),
+                                  shiny::span(class = "edark-export-name", "README.txt")),
+                                shiny::span(class = "edark-export-reason", "always included"))),
       .leaves(root_items),
       Filter(Negate(is.null), folders)
     )

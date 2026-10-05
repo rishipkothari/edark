@@ -977,10 +977,12 @@
 /* ==========================================================================
    10  Export - the zip tree (R/module_export.R, inst/www/edark_export.js)
 
-   The centre of the Export page is the zip itself. Folders are native
-   <details>, so opening one needs no JS; rows are one line each, the
-   checkbox, an icon, the file name, then any badge and the reason a file
-   cannot be ticked yet. Indentation shows depth - no boxes inside boxes.
+   The centre of the Export page is the zip itself, and the only place
+   anything is chosen. Folders are native <details>, so opening one needs no
+   JS. A row is the checkbox, the file name, then the file's own option (a
+   format select, the session's input dataset), any badge and the reason a
+   file cannot be ticked yet. No icons, no bullets: depth is shown by
+   indentation and one guide line per level.
    ========================================================================== */
 
 .edark-export-tree {
@@ -989,13 +991,28 @@
   padding-bottom: 0.5rem;
 }
 
-.edark-export-list {
+.edark-export-list,
+.edark-export-list > li {
   list-style: none;
   margin: 0;
-  padding-left: 1.4rem;
 }
 
-/* Room on the left for the top-level folders' disclosure triangle */
+.edark-export-list > li::marker {
+  content: none;
+}
+
+.edark-export-list {
+  padding-left: 0;
+}
+
+/* Nested levels: indent, with a guide line under the parent's chevron */
+.edark-export-list .edark-export-list {
+  margin-left: 0.55rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--bs-border-color);
+}
+
+/* Room on the left for the top-level folders' chevron */
 .edark-export-top {
   padding-left: 1.1rem;
 }
@@ -1004,10 +1021,10 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.2rem 0.4rem;
+  min-height: 1.85rem;
+  padding: 0.1rem 0.4rem;
   border-radius: var(--bs-border-radius-sm);
   font-size: 0.875rem;
-  cursor: pointer;
   margin: 0;
 }
 
@@ -1015,26 +1032,46 @@
   background-color: var(--bs-secondary-bg);
 }
 
+.edark-export-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  cursor: pointer;
+}
+
 .edark-export-row .form-check-input {
   margin: 0;
   flex-shrink: 0;
-}
-
-.edark-export-icon {
-  width: 1rem;
-  text-align: center;
-  color: var(--bs-secondary-color);
-  flex-shrink: 0;
-}
-
-.edark-export-folder-icon {
-  color: var(--edark-type-numeric);
 }
 
 .edark-export-name {
   font-family: var(--bs-font-monospace);
   font-size: 0.8125rem;
   white-space: nowrap;
+}
+
+/* A file's own option, right after its name */
+select.edark-export-opt {
+  width: auto;
+  padding-top: 0.05rem;
+  padding-bottom: 0.05rem;
+  font-size: 0.8125rem;
+  min-height: 0;
+}
+
+.edark-export-opt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0 0.25rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.edark-export-opt-check.is-disabled {
+  color: var(--bs-secondary-color);
+  cursor: default;
 }
 
 .edark-export-folder-note,
@@ -1054,21 +1091,27 @@
   white-space: nowrap;
 }
 
-/* A folder row: its own disclosure triangle, drawn so it lines up with the
-   checkbox column of the file rows beneath it */
+/* A folder row: its own chevron, drawn in the gutter left of the checkbox */
 .edark-export-folder > details > summary {
   list-style: none;
   font-weight: 600;
+  cursor: pointer;
 }
 
+.edark-export-folder > details > summary::marker,
 .edark-export-folder > details > summary::-webkit-details-marker {
   display: none;
+  content: none;
 }
 
 .edark-export-folder > details > summary::before {
-  content: "\25B8";
+  content: "\203A";
+  display: inline-block;
   width: 0.75rem;
   margin-left: -1.1rem;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1;
   color: var(--bs-secondary-color);
   transition: transform .15s ease;
 }
@@ -1079,26 +1122,20 @@
 
 /* A file that cannot be exported yet: listed so the user can see what the
    zip could hold, greyed so it does not read as part of it */
-.edark-export-leaf.is-unavailable .edark-export-row {
+.edark-export-leaf.is-unavailable .edark-export-pick,
+.edark-export-leaf.is-fixed .edark-export-pick {
   cursor: default;
 }
 
-.edark-export-leaf.is-unavailable .edark-export-name,
-.edark-export-leaf.is-unavailable .edark-export-icon {
+.edark-export-leaf.is-unavailable .edark-export-name {
   opacity: 0.55;
 }
 
-.edark-export-leaf.is-fixed .edark-export-row {
-  cursor: default;
-}
-
 .edark-export-root {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   padding: 0.2rem 0.4rem 0.4rem;
   margin-bottom: 0.25rem;
   border-bottom: 1px solid var(--bs-border-color-translucent);
+  font-weight: 600;
 }
 
 

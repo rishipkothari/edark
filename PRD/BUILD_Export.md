@@ -183,16 +183,22 @@ Word, next to the session file it describes).
 
 Page contract (D6): `edark_page(config, result, info, messages)`. As built - mechanics in §N8.
 
-**Config (left).** Data format (radio: RDS / CSV / SPSS / Stata / Excel). Report format
-(radio: Word / HTML). Session file: "Include the input dataset" + governance note. Then the
-primary action **Build & Download** at the bottom (D10), disabled with a reason when nothing
-is ticked.
+**Config (left).** Only the primary action **Build & Download** (D10), disabled with a
+reason when nothing is ticked, and the patient-level-data governance note. Nothing is
+chosen here: the tree is the one place to choose (revised 2026-10-05 - formats in the left
+pane and files in the tree were two places to pick the same zip).
+
+**File options sit on their rows.** `analysis_report` has a Word / HTML select,
+`working_dataset` an RDS / CSV / SPSS / Stata / Excel select, `session.edark.rds` an
+"include input dataset" checkbox. Each is disabled while its file is unticked; so "no
+report" or "no dataset" is just unticking the file.
 
 **Centre - the zip tree.** A right-aligned toolbar above it: "n of m available files
 selected" on the left, **Download Last Build** (disabled until a build exists) on the right.
 Then Select all · Clear · Expand all · Collapse all, the zip's root line, README.txt (always
 included), the report, and one folder per stage with `tables/` and `figures/` inside.
 
+- No icons and no bullets: checkbox, file name, the file's option, badge / reason. Depth is indentation plus one guide line per level.
 - Folders are native `<details>`; collapsed by default; each shows "ticked of available".
 - Ticks, tri-state folder boxes and counts are handled in `inst/www/edark_export.js`; the
   selection and the open folders are reported to the server, which re-renders the tree only
@@ -202,7 +208,7 @@ included), the report, and one folder per stage with `tables/` and `figures/` in
 
 **Info (right).** "The zip will hold": per folder "k of n", total files (README included).
 "Source": working dataset dims, Analyze state (model type / stale / not started), data
-format. After a build: time, files, size, files left out. (The size estimate before a build
+format, report format and session data (each only when that file is ticked). After a build: time, files, size, files left out. (The size estimate before a build
 was dropped - an honest number only exists after the build.)
 
 **Messages.** Prepare changed since the freeze (X16); Prepare has unapplied changes (the

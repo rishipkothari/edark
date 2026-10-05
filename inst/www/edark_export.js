@@ -7,7 +7,11 @@
        all / some / none (the indeterminate state) from its files;
      - each folder shows "ticked of available";
      - the ticked file ids go to input$<tree data-input>, the open folders to
-       input$<tree data-open-input>, so a server re-render can restore both.
+       input$<tree data-open-input>, so a server re-render can restore both;
+     - a file's options on its row (.edark-export-opt: data / report format,
+       the session's input dataset) are ordinary Shiny inputs bound by id;
+       here they are only disabled while their file is unticked, and a format
+       select renames the file on its row.
    Plus one message handler: start the download once a build is ready.
    ========================================================================== */
 
@@ -50,8 +54,20 @@
     Shiny.setInputValue(tree.getAttribute("data-open-input"), open);
   }
 
+  // A file's options only apply when the file is ticked
+  function syncOptions(tree) {
+    tree.querySelectorAll(".edark-export-opt").forEach(function (o) {
+      var box = o.closest(".edark-export-row").querySelector("input.edark-export-box");
+      var off = !box || !box.checked;
+      o.disabled = off;
+      var lab = o.closest(".edark-export-opt-check");
+      if (lab) lab.classList.toggle("is-disabled", off);
+    });
+  }
+
   function sync(tree) {
     syncFolders(tree);
+    syncOptions(tree);
     report(tree);
   }
 
@@ -59,6 +75,11 @@
     var t = e.target;
     var tree = t.closest && t.closest(".edark-export-tree");
     if (!tree) return;
+    if (t.matches("select.edark-export-opt")) {
+      var name = t.closest(".edark-export-row").querySelector(".edark-export-name");
+      if (name) name.textContent = t.getAttribute("data-stem") + "." + t.value;
+      return;
+    }
     if (t.classList.contains("edark-export-folder-box")) {
       var d = t.closest("details");
       leaves(d).forEach(function (b) { b.checked = t.checked; });
