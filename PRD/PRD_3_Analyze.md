@@ -7,7 +7,7 @@
 
 *Derived from the superseded monolithic Analyze PRD (now in `archive/`). Section numbers are unchanged apart from the `A` prefix (old §8.6 = §A8.6). The old Global Mandates section is §A0; the old Section 13 (sessions) moved to §M8.*
 
-> **Step numbering:** this document describes nine steps. The code has six, with Diagnostics / Performance / Results nested as sub-tabs under Step 5 Model and Export as Step 6. Read "Step 6/7/8" below as those sub-tabs and "Step 9" as Step 6 Export, until this document is renumbered.
+> **Step numbering:** this document describes nine steps. The code has five, with Diagnostics / Performance / Results nested as sub-tabs under Step 5 Model; Export is no longer an Analyze step but the top-level **4 · Export** page (§A10). Read "Step 6/7/8" below as those sub-tabs and "Step 9" as 4 · Export, until this document is renumbered.
 
 ---
 
@@ -559,7 +559,7 @@ Tab 3: Analyze
     ├── Step 6: Diagnostics            layout_sidebar(position = "left")
     ├── Step 7: Performance            layout_sidebar(position = "left")
     ├── Step 8: Results                layout_sidebar(position = "left")
-    └── Step 9: Export                 full-width, layout_columns(col_widths = c(6,6))
+    (Export moved to the top-level 4 · Export page - §A10)
 ```
 
 Steps 5–6 create the model and check its assumptions; Step 7 evaluates how well it predicts — a separate goal that matters most when the model purpose is **Prediction** (§A1.4a). Steps 6–9 open once a model is fitted.
@@ -571,7 +571,7 @@ Status indicators: Not started (muted) / In progress (blue) / Complete (green ch
 ### A5.2 Global UI Principles
 
 - Run/generate buttons in config panel only — never in output area
-- No per-object download buttons — all downloads via Step 9
+- No per-object download buttons — all downloads via 4 · Export
 - Consistent message area at top of every output panel
 - Placeholder cards for ungenerated outputs — never blank space
 - Blocking modal with step-list progress for operations > ~2 seconds
@@ -733,7 +733,7 @@ Resamples are drawn up front with the seed (`.with_seed()` restores the session'
 
 **Layout:** `layout_sidebar(position = "left")` — sidebar: output checkboxes + Generate Outputs; main panel: model header + `navset_card_tab`.
 
-**Outputs** (catalogue `.RESULTS_OUTPUTS` — add future outputs there): Results table (sub-option: include unadjusted estimates), Fit statistics, Forest plot, Methods paragraph. All ticked by default. **Only ticked outputs are created and stored; unticked ones are not created, so Step 9 cannot export them.** Fit statistics add the AUC (with CI) for each set of rows Step 7 evaluated (apparent, test). Each Generate replaces the previous set. The **Summary** tab is always shown, has no checkbox, and computes nothing — key numbers only, no prose (exposure estimates, model, sample, fit, checks, which outputs exist).
+**Outputs** (catalogue `.RESULTS_OUTPUTS` — add future outputs there): Results table (sub-option: include unadjusted estimates), Fit statistics, Forest plot, Methods paragraph. All ticked by default. **Only ticked outputs are created and stored; unticked ones are not created, so 4 · Export cannot export them.** Fit statistics add the AUC (with CI) for each set of rows Step 7 evaluated (apparent, test). Each Generate replaces the previous set. The **Summary** tab is always shown, has no checkbox, and computes nothing — key numbers only, no prose (exposure estimates, model, sample, fit, checks, which outputs exist).
 
 **Results table** (`build_results_table()` → one data.frame; `results_table_gt()` for the app, `results_table_flextable()` for Word): rows = exposure then final covariates (never unchosen candidates, so every cell is filled); a factor gets a header row, a *Reference* row and one row per other level; no intercept; random effects not shown (Fit statistics only). Columns: Unadjusted and Adjusted (n), each "OR (95% CI)" or "β (95% CI)" plus p. Exposure bold, reference rows italic. Footnotes: measure (and event), per-unit note, what "adjusted" and "unadjusted" mean, `edark_inference_note()`, and † / ‡ for unadjusted models fitted with a warning / not fitted. Built as our own table, not `tbl_regression()` — that needs broom.helpers and would re-process our numbers.
 
@@ -751,19 +751,7 @@ Resamples are drawn up front with the seed (`.with_seed()` restores the session'
 
 #### Step 9 — Export
 
-**Module file:** `R/module_analysis_export.R` | **Service file:** `R/service_analysis_export.R`
-
-**Layout:** full-width `layout_columns(col_widths = c(6, 6))`.
-
-**Left:** presets (Custom/Analysis Package/Manuscript Items/Report Only/Everything), item checklists by type with step-of-origin subheadings, methods section (data/script/spec), self-contained package as separate checkbox, report section, full result object, validation, download button.
-
-**Right:** live zip preview, item count, estimated size.
-
-Export checklist repopulates on tab entry. See §A10 for complete specifications.
-
-**Reachable** once the dataset is frozen (not gated on a fitted model). Every item is listed from the start but disabled, with a tooltip naming the step that creates it, until its source exists in `analysis_result`. The analysis dataset is an optional item. Session files are separate — see §M8.
-
-**Step complete when:** download initiated.
+Moved out of Analyze to the top-level **4 · Export** page (2026-10-05). See §A10 and [BUILD_Export.md](BUILD_Export.md).
 
 ### A5.4 Stale State Propagation
 
@@ -906,9 +894,7 @@ Sidebar: "Outputs" checkboxes (Results table + indented "Include unadjusted esti
 
 ### A6.11 Step 9 — Export
 
-**Module file:** `R/module_analysis_export.R`
-
-Two-column full-width. Left: presets, checklists with step-of-origin subheadings, methods/data/script/spec, self-contained package, report, full result, validation, download. Right: zip preview.
+Now the top-level 4 · Export page (§A10): config left (data format, report format, session option, Build & Download), the zip tree in the centre, what the zip will hold in the info pane.
 
 ---
 
@@ -1230,68 +1216,46 @@ No candidates → disabled. Single candidate → valid. All excluded → modal w
 
 ## A10 — Export and Output Specification
 
-**Service file:** `R/service_analysis_export.R`
+**Built 2026-10-05 (untested).** Export is no longer an Analyze step: it is the top-level **4 · Export** page, because it works without any Analyze work. The build plan, decisions and zip layout are in [BUILD_Export.md](BUILD_Export.md); this section is the summary. Mechanics: §N8.
+
+**Files:** `R/module_export.R` (page), `R/service_export.R` (registry, writers, notes, build job), `R/service_export_report.R` (compiled report), `inst/www/edark_export.js` (the tree).
 
 ### A10.1 Overview
 
-Export reads from cached `analysis_result`. No recomputation during export. Checklist repopulates on Step 9 tab entry. Items whose source has not been created yet are shown disabled (§A5.3 Step 9).
+Export reads from `shared_state` and the cached `analysis_result`; nothing is recomputed (formatting only). It produces **materials** - outputs for publication and reproduction - in one zip. Saving and resuming work is a session file (§M8), though the zip carries one too.
 
-Export produces **materials** — outputs for publication and reproduction. Saving and resuming work is a **session file** (§M8), not an export.
+Every file the zip could hold is listed from the start. A file can be ticked only when its source exists and is **current**: not-run and stale outputs are listed greyed, with the place that makes them, and are never exported. Staleness comes from `analysis_output_status()` (`service_analysis_models.R`): model-derived outputs are stale when the spec changed since the fit (`analysis_fit_is_stale()`); Performance also when its validation settings changed since the run; **every** Analyze output is stale when Prepare changed after Setup froze the dataset.
 
-### A10.2 Export Folder Structure (Authoritative — supersedes §A3.8)
+### A10.2 Zip Layout (supersedes §A3.8)
 
 ```
-analysis_[YYYY-MM-DD_HHMMSS]/
-├── methods/
-│   ├── methods.docx
-│   ├── analysis_script.R
-│   ├── analysis_specification.json
-│   ├── analysis_specification.rds
-│   └── data/
-│       ├── analysis_dataset.rds
-│       ├── analysis_dataset.csv
-│       ├── analysis_dataset.sav
-│       ├── analysis_dataset.dta
-│       └── analysis_dataset.xlsx
-├── results/
-│   ├── tables/
-│   │   └── [table1_overall.docx, multivariable_results.docx, etc.]
-│   └── figures/
-│       └── forest_plot.png
-├── diagnostics/
-│   ├── tables/
-│   │   └── [diagnostic_summary.docx, vif_table.docx, etc.]
-│   └── figures/
-│       └── [residuals_vs_fitted.png, linearity.png, etc.]
-├── performance/
-│   ├── tables/
-│   │   └── performance_summary.docx          ← one column per set of rows
-│   └── figures/
-│       └── [roc_curve_apparent.png, roc_curve_test.png, calibration_test.png, etc.]
-├── analysis_report.docx
-├── analysis_result.rds
-└── analysis_package_[HHMMSS].zip
+edark_export_YYYY-MM-DD_HHMMSS/
+├── README.txt                    always: contents, dataset, model, renamed columns, files left out
+├── analysis_report.docx | .html  compiled report (optional)
+├── data/working_dataset.{rds,csv,sav,dta,xlsx}
+├── reproduce/  session.edark.rds, prepare_steps.txt, analysis_script.R (coming soon)
+├── table1/     table1_overall|by_exposure|by_outcome.docx, table1_notes.docx
+├── variable_selection/  tables/ figures/ variable_selection_notes.docx
+├── model/      tables/ (results_table, fit_statistics), figures/forest_plot.png,
+│               methods.docx, model_notes.docx, analysis_result.rds (unticked by default)
+├── diagnostics/  tables/ figures/ diagnostics_notes.docx
+└── performance/  tables/ figures/ performance_notes.docx
 ```
 
-### A10.3–A10.6 Assembly Pipeline, Tables, Figures, Data
+Tables are Word (`.docx`, one per table). Figures are PNG at 300 dpi, 8 x 6 in unless the plot sizes itself. Each folder's **notes** document holds the numbers that are not a table or a figure (every diagnostic metric and message, validation settings and per-set measures, selection settings, the model summary), built from the same structures the screens render.
 
-Tables via `flextable::save_as_docx()`. Figures via `ggplot2::ggsave()` (8×6 inches, 300 dpi). Data from `analysis_data` excluding `.edark_row_id`. Methods paragraph as `methods.docx`.
+### A10.3 Data
 
-### A10.7 Report Generation
+The working dataset as Prepare left it - unmodified, no split column, no `.edark_row_id`. The train/test split is reproducible from the spec. SPSS and Stata need plain column names; renames are listed in `README.txt`.
 
-**Word:** `officer::read_docx()` + `body_add_*()`. **HTML:** `rmarkdown` template at `inst/report_template.Rmd`.
+### A10.4 Compiled Report
 
-Fixed structure: title/metadata → spec summary → methods paragraph → Table 1 → results → performance (when run; first for a prediction model) → Appendix A (variable selection) → Appendix B (diagnostics). Sections omitted if content not generated.
+Word (bundled template, title page, TOC) or HTML (one self-contained file). Order: data preparation → analysis summary + methods → Table 1 → results → performance (before results for a prediction model) → Appendix A variable selection → Appendix B diagnostics. A section appears only when its source is available. PDF is deferred.
 
-### A10.8–A10.9 Spec Export, Analysis Package
+### A10.5 Not Built
 
-Spec exported as both JSON (human-readable) and RDS (programmatic). Analysis package: standard `.zip` in root containing dataset RDS + spec RDS/JSON + R script + manifest.json. Import workflow documented for v1.5.
+Presets, PDF, the R script (Phase 5b), an analysis package with a manifest (dropped - the session file does that job), import of an export.
 
-### A10.10–A10.12 Full Result Object, Diagnostic Summary, Methods Files
-
-`analysis_result.rds` at root for Archetype C. Diagnostic summary table: all computed metrics in one table. Methods folder: methods.docx, R script, spec files, data.
-
----
 
 ## A11 — Versioning and Deferral Log
 
@@ -1307,8 +1271,7 @@ Spec exported as both JSON (human-readable) and RDS (programmatic). Analysis pac
 - Performance step: ROC/AUC, calibration (with test-set calibration intercept and slope), predicted probabilities, prediction error — apparent and on a held-out test set
 - Manuscript-ready tables and figures
 - Methods paragraph auto-generation
-- Export zip with manuscript-oriented folder structure
-- Self-contained analysis package (export only)
+- Export zip (4 · Export, §A10): data, session file, tables, figures, notes, compiled report
 - Reproducible R script generation
 - Wald-based CIs and p-values for all model types
 
@@ -1345,7 +1308,7 @@ R/
 ├── module_analysis_diagnostics.R         ← Step 6
 ├── module_analysis_performance.R         ← Step 7
 ├── module_analysis_results.R             ← Step 8
-├── module_analysis_export.R              ← Step 9
+├── module_export.R                       ← 4 · Export (top level, §A10)
 ├── service_analysis_models.R             ← model fitting engines
 ├── service_analysis_diagnostics.R        ← diagnostic computation
 ├── service_analysis_performance.R        ← performance computation (apparent, test set)
@@ -1355,7 +1318,8 @@ R/
 ├── service_analysis_summary.R            ← Step 5 Summary builder (audit of every step)
 ├── service_analysis_variable_selection.R ← univariable, stepwise, LASSO
 ├── service_analysis_codegen.R            ← R code generator
-├── service_analysis_export.R             ← export assembly pipeline
+├── service_export.R                      ← export registry, writers, build job
+├── service_export_report.R               ← compiled export report
 ├── service_analysis_pipeline.R           ← reset_analysis_pipeline()
 ├── analysis_utils.R                      ← formula assembly, reference levels, complete cases, train/test rows
 ├── module_session.R                      ← session save/load menu, autosave, resume (§M8)

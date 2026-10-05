@@ -253,6 +253,10 @@ analysis_varinvestigation_server <- function(id, shared_state) {
         res$result_plots$collinearity_plots <- list()
       }
       res$result_plots$collinearity_plots$flagged_pairs_table <- result$flagged_pairs
+      # The matrices too, so Export can draw the heatmaps without recomputing
+      # (PRD/BUILD_Export.md X13). `[<-` keeps a NULL matrix as a NULL entry.
+      res$result_plots$collinearity_plots["cor_matrix"]     <- list(result$cor_matrix)
+      res$result_plots$collinearity_plots["cramers_v_matrix"] <- list(result$cramers_v_mat)
       shared_state$analysis_result <- res
     }
 

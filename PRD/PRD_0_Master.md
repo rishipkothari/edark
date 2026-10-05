@@ -38,10 +38,13 @@ edark(dataset)
               Report: full or custom PPTX / DOCX / HTML report
    ▼
 3 · Analyze   freeze working dataset → roles → Table 1 → variable investigation →
-              covariates → model → diagnostics → results → export
+              covariates → model → diagnostics → performance → results
+   ▼
+4 · Export    one zip: working dataset, session file, Analyze tables / figures /
+              notes, compiled report - only outputs that exist and are current
 ```
 
-Navigation between the three tabs is free. The stages form an arc, not a locked sequence.
+Navigation between the four tabs is free. The stages form an arc, not a locked sequence.
 
 ---
 
@@ -119,20 +122,21 @@ Missing columns, dropped factor levels, and variables that no longer exist are h
 
 ### M4.1 Navigation Layout
 
-`bslib::page_navbar` with three numbered tabs, plus two navbar utilities:
+`bslib::page_navbar` with four numbered tabs, plus two navbar utilities:
 
 | Tab | Contents | Layout |
 |---|---|---|
 | **1 · Prepare** | Sub-tabs Columns · Transforms · Row Filters · Data Preview | Left sidebar (Apply) + `navset_card_tab` (§P3) |
 | **2 · Explore** | Sub-tabs **Plot** (pills Describe · Correlate · Trend) and **Report** (pills Full Report · Custom Report) | Plot: left sidebar controls + output panel (§E2); Report: §E10 |
-| **3 · Analyze** | Nine numbered step pills: Setup · Table 1 · Variable Investigation · Covariate Confirmation · Model Creation · Diagnostics · Performance · Results · Export | `navset_pill` orchestrator (§A5.1) |
+| **3 · Analyze** | Five numbered step pills: Setup · Table 1 · Variables · Covariates · Model (Model nests Summary · Create · Diagnostics · Performance · Results) | `navset_pill` orchestrator (§A5.1) |
+| **4 · Export** | One page: formats and Build & Download (config), the zip as a folder tree (centre), what the zip will hold (info) | `edark_page()` (§A10, `PRD/BUILD_Export.md`) |
 | *(navbar right)* | Debug button; light/dark theme toggle | — |
 
 ### M4.2 Navigation and Gating
-- The three top-level tabs are always reachable.
+- The four top-level tabs are always reachable. Export lists every file it could write and enables only those whose output exists and is current (§A10).
 - Prepare sub-tab switches auto-apply staged changes; invalid transforms block the switch (§P7.3).
 - Explore → Report navigation is requested through `shared_state$requested_tab` / `requested_report_subtab` (§M6.4).
-- Analyze steps are gated by what exists (§A5, CLAUDE.md "Step gating"): Steps 1–4 always open; Step 5 once the dataset is frozen and an outcome is assigned; Steps 6–9 once a model is fitted. Locked steps show a tooltip explaining what unlocks them.
+- Analyze steps are gated by what exists (§A5, CLAUDE.md "Step gating"): Steps 1–4 always open; Step 5 once the dataset is frozen and an outcome is assigned; the Model sub-tabs after Create once a model is fitted. Locked steps show a tooltip explaining what unlocks them.
 
 ### M4.3 Entry Points
 
@@ -173,13 +177,13 @@ Layout, action placement and visual hierarchy follow [NOTE_UI-principles.md](NOT
 | Plot | `plot_specification`, `active_plot`, `variable_summary`, `explore_needs_refresh` | Explore controls / output; Prepare Apply sets the refresh flag | Explore output |
 | Aesthetics | `ggplot_theme`, `color_palette`, `show_data_labels`, `show_legend`, `legend_position` | Explore controls | Explore output |
 | Custom report | `custom_report_items`, `requested_tab`, `requested_report_subtab` | Explore output; Report | Report; `edark.R` navigation observer |
-| Analyze | `analysis_data`, `analysis_spec`, `analysis_result` | Analyze modules only | Analyze modules only (§M5.3) |
+| Analyze | `analysis_data`, `analysis_spec`, `analysis_result` | Analyze modules only | Analyze modules, plus Session and Export read-only (§M5.3) |
 | Session | `session_restore` | Session module | Analyze Steps 1 and 4, which clear it (§M8.7) |
 
 Stage PRDs list their fields in detail: §P10, §E9, §A3.3.
 
 ### M5.3 Analysis-Reserved Fields
-`analysis_data`, `analysis_spec` and `analysis_result` belong to Analyze. Prepare, Explore and Report never read or write them. Analyze reads Prepare state exactly once — at freeze — and never writes back (§A1.2, §M6.6). The only exception is the session module reading `analysis_spec` to save it (§M8.10).
+`analysis_data`, `analysis_spec` and `analysis_result` belong to Analyze. Prepare, Explore and Report never read or write them. Analyze reads Prepare state exactly once — at freeze — and never writes back (§A1.2, §M6.6). The exceptions are readers that never write: the session module reads `analysis_spec` to save it (§M8.10), and the Export page (`module_export.R`) reads all three to write the zip (§A10).
 
 ---
 
@@ -228,8 +232,8 @@ EDARK produces four kinds of output. They are deliberately separate.
 | Output | What it is | Where | Status |
 |---|---|---|---|
 | **Explore reports** | Full or custom PPTX / DOCX / HTML report of plots and summary tables | Explore › Report (§E10–E14) | Built |
-| **Analysis materials** | Tables, figures, methods, report, R script, spec, optional dataset — for publication and reproduction | Analyze Step 9 (§A10) | Planned (Phase 8) |
-| **Dataset export** | Working dataset (and optionally original + Prepare spec) as RDS / CSV | Prepare (§P9) | Backlog |
+| **Export materials** | One zip: working dataset (RDS / CSV / SPSS / Stata / Excel), session file + Prepare steps, Analyze tables (Word), figures (PNG) and per-folder notes, compiled report (Word / HTML); R script coming soon | 4 · Export (§A10, `PRD/BUILD_Export.md`) | Built 2026-10-05, untested |
+| **Dataset export** | The working dataset alone | Now part of 4 · Export (data/ folder) | Folded into Export |
 | **Session file** | Saved decisions for resuming work, optionally with data | Session menu (§M8) | Built (Phase S; autosave deferred) |
 
 Single-plot exports (Save Plot, Copy to Clipboard) are in the Explore output panel (§E6).
@@ -244,7 +248,7 @@ Single-plot exports (Save Plot, Copy to Clipboard) are in the Explore output pan
 
 Let a researcher save their setup and pick up where they left off - on the same dataset, or on a refreshed pull of it with exactly the same columns and column types. A session file stores **decisions, not results**. Loading one sets up the app; nothing is fitted or computed. Anything that needs to run (Table 1, variable investigation, the model) is re-run by the user.
 
-This is separate from **materials** (Analyze Step 6 Export, §A10), which exports outputs for publication and reproduction.
+This is separate from **materials** (4 · Export, §A10), which exports outputs for publication and reproduction. Export does put a session file in its zip (`reproduce/session.edark.rds`, written by the same `build_session()`), so the materials can be reopened.
 
 ### M8.2 What a Session Contains
 

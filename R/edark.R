@@ -195,6 +195,15 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
       analysis_main_ui("analysis_main")
     ),
 
+    # ── Tab 4: Export ────────────────────────────────────────────────────────
+    # Materials from every stage in one zip (PRD/BUILD_Export.md). Its own
+    # top-level step because it works without any Analyze work.
+    bslib::nav_panel(
+      value = "export",
+      title = "4 \u00b7 Export",
+      export_ui("export")
+    ),
+
     bslib::nav_spacer(),
     session_ui("session"),
     bslib::nav_item(
@@ -415,14 +424,6 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
       } else if (step == "step5_results") {
         .dbg("analysis_result$result_tables",    result$result_tables)
         .dbg("analysis_result$inference_summary", result$inference_summary)
-
-      } else if (step == "step6") {
-        .dbg("analysis_spec (full)", spec)
-        if (!is.null(result)) {
-          cat(sprintf("  [analysis_result keys] %s\n", paste(names(result), collapse = ", ")), file = stderr())
-        } else {
-          cat("  [analysis_result] <NULL>\n", file = stderr())
-        }
       }
     
       cat("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n", file = stderr())
@@ -462,6 +463,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
     explore_output_server("explore_output",   shared_state)
     report_server("report",                   shared_state)
     analysis_main_server("analysis_main",     shared_state)
+    export_server("export",                   shared_state, dataset_input = dataset)
     # Last: a launch session is applied in the first flush, after every
     # module above has registered its observers.
     session_server("session", shared_state, dataset_input = dataset,

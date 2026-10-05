@@ -4,7 +4,7 @@
 #' outputs that can be generated — results table (with an optional
 #' unadjusted column), fit statistics, forest plot, methods paragraph — and
 #' one Generate Outputs button. Ticked outputs are created and stored in
-#' \code{analysis_result}; unticked ones are not created, so Step 6 (Export) cannot
+#' \code{analysis_result}; unticked ones are not created, so the Export page cannot
 #' export them. The Summary tab (key numbers, no prose) is always shown and
 #' reads what already exists.
 #'
@@ -63,7 +63,7 @@ analysis_results_ui <- function(id) {
       edark_run_button(ns, "btn_generate", "Generate Outputs"),
       shiny::tags$p(class = "small text-muted mt-2 mb-0",
                     "Only the ticked outputs are created, and only created outputs can be",
-                    "exported in Step 6. The Summary tab is always shown.")
+                    "exported from 4 \u00b7 Export. The Summary tab is always shown.")
     ),
     result = shiny::tagList(
       shiny::tags$script(shiny::HTML("

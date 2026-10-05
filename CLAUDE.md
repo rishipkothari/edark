@@ -54,10 +54,13 @@ R/
 ├── module_explore_output.R     Explore result pane — plot + action toolbar; variable summary and custom-report state go to the info pane
 ├── module_appearance.R         Explore › Appearance panel — the app's only plot-aesthetics controls; sole writer of the five aesthetic shared_state fields
 ├── module_report.R             Report tab — Full / Custom underline tabs; Full has a config pane + resolved section list, Custom has no centre (D11)
+├── module_export.R             4 · Export page - formats + Build & Download (config), the zip as a folder tree (centre), zip contents (info); ticked build with Cancel, then auto-download (§A10, §N8)
+├── service_export.R            Export registry export_items() (every file + available / stale / not run), file writers, per-folder notes docs, README, build job; pure
+├── service_export_report.R     Compiled export report - one block list rendered to Word (template + .docx_* helpers) or self-contained HTML; pure
 │
 ├── ui_helpers.R                Shared UI component library — lock reasons, buttons, badges, section labels, empty states, messages, info rows, model header, aesthetics controls
 │
-├── module_analysis_main.R          Analyze tab — orchestrator; 6-step navset_pill (Step 5 nests Model sub-tabs) + JS progress handler + step/sub-tab gating
+├── module_analysis_main.R          Analyze tab — orchestrator; 5-step navset_pill (Step 5 nests Model sub-tabs) + JS progress handler + step/sub-tab gating
 ├── module_analysis_setup.R         Analyze › Step 1: Setup — dataset freeze, role assignment (outcome/exposure/candidates/clusters), study type, model purpose + train/test split, reset modal with undo (Phases 1, 6b)
 ├── module_analysis_table1.R        Analyze › Step 2: Table 1 — gtsummary descriptive table (Phase 2)
 ├── module_analysis_varinvestigation.R   Analyze › Step 3: Variable Investigation — univariable screen, collinearity, stepwise/LASSO (Phase 3)
@@ -66,7 +69,6 @@ R/
 ├── module_analysis_diagnostics.R   Analyze › Step 5 Model › Diagnostics — assumption checks + Run; Overview + per-check tabs (Phase 6)
 ├── module_analysis_performance.R   Analyze › Step 5 Model › Performance — measures + Run; Overview (one column per set of rows) + per-set tabs (Phase 6b)
 ├── module_analysis_results.R       Analyze › Step 5 Model › Results — output checkboxes + Generate; Summary + per-output tabs (Phase 7)
-├── module_analysis_export.R        Analyze › Step 6: Export — zip assembly, preset selector, download (Phase 8)
 │
 ├── analysis_utils.R                build_analysis_formula() / apply_reference_levels() / compute_complete_cases() / compute_covariate_sample() / analysis_split() / analysis_split_rows() / analysis_model_data() / analysis_test_data()
 ├── service_analysis_pipeline.R     reset_analysis_pipeline(shared_state, from_step) — clears downstream state per PRD §8.6
@@ -79,7 +81,6 @@ R/
 ├── service_analysis_plots.R        ggplot figures from plain data — diagnostic plots (Phase 6); performance plots (Phase 6b); forest plot (Phase 7)
 ├── service_analysis_variable_selection.R  Univariable screen / stepwise / LASSO (Phase 3)
 ├── service_analysis_codegen.R      Reproducible R script generator (Phase 5)
-├── service_analysis_export.R       Export zip assembly pipeline (Phase 8)
 │
 └── data.R                      Roxygen docs for built-in liver_tx dataset
 
@@ -97,7 +98,9 @@ inst/
 │                                      Subtitle and heading 1-9 styles; the TOC and the
 │                                      section furniture are built in .assemble_docx()
 └── www/
-    └── edark.css          ### What each file is for
+    ├── edark.css
+    └── edark_export.js    Export page zip tree: tri-state folders, selection / open folders to the server, download trigger (§N8.3)
+### What each file is for
 
 | File | Holds | Read it when |
 |---|---|---|
@@ -147,7 +150,6 @@ main-specific questions.
 ## TO-DOs
 
 ### High priority
-- Export results functionality
 - session autosave (save / load on click is built on `session-manager-v1`, §M8) - evaluate the cost of building + writing a session on every change first; resume prompt on or inside the splash card (§M8.9)
 - Propensity score weighted/adjusted/matched models
 - Alternative plot types per variable combination (heat map, balloon plot, etc.) (plot 3 vars in 2 dimensions or new types of plots for existing 2 vars)
@@ -181,7 +183,7 @@ main-specific questions.
 ### Analyze
 
 ### In progress
-Phases 0–7 and 6b complete; Step 6 (Export, Phase 8) is a placeholder stub. Phase 5b code generator (`service_analysis_codegen.R`) deferred — Step 5's R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`). Phase definitions and acceptance criteria: `PRD/BUILD_Analysis.md`.
+Phases 0–7 and 6b complete; Export moved to the top-level 4 · Export page (built 2026-10-05, `PRD/BUILD_Export.md`). Phase 5b code generator (`service_analysis_codegen.R`) deferred — Step 5's R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`). Phase definitions and acceptance criteria: `PRD/BUILD_Analysis.md`.
 - **Performance validation follow-ups** (Phase 7b built 2026-09-19): optional shrunk-coefficient output from the bootstrap calibration slope; decision curve analysis; CV / bootstrap for mixed models with several cluster variables groups by the first one only.
 
 #### High magnitude
@@ -205,7 +207,10 @@ Phases 0–7 and 6b complete; Step 6 (Export, Phase 8) is a placeholder stub. Ph
     - also with UI refresh, might be able to eliminate some of the click to lock in steps, should evaluate
 
 #### Mid magnitude
-- Export (§P9): working dataset, prepare/analyze spec, model ouptuts/results (including diagnostics). Formats for results would be individual files vs single document/report (select output type word, pdf, HTML). Zip all files. Share a writer with Step 9 and sessions (§M7).
+- **Verify 4 · Export in R (branch `export_v1`).** Built without being run: `devtools::document()` (new / renamed files, NAMESPACE edited by hand), then build a zip for each model type (linear, logistic, both mixed) and check every file opens, the tree keeps ticks and open folders across a re-render, Cancel, and the auto-download (§N8, acceptance criteria in `PRD/BUILD_Export.md` §7).
+- Export presets (Manuscript / Full archive / Data only) - deferred from `PRD/BUILD_Export.md`.
+- Export PDF report - recommended route HTML → `pagedown::chrome_print` (needs Chrome / Edge; disable with a reason when absent).
+- Export `reproduce/analysis_script.R` - listed as coming soon; needs Phase 5b.
 
 ### Low magnitude
 - Splash card overflows on mid-width windows. After the 2x scale-up its min-width is 800px, but the fallback rule in `edark.css` section 9 only triggers below 460px, so roughly 460-840px of window width overflows horizontally. Raise that breakpoint to about 880px.

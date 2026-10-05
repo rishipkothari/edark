@@ -150,6 +150,96 @@ analysis_fit_is_stale <- function(spec, result) {
 }
 
 
+#' Is each Analyze output available, stale or not run?
+#'
+#' One answer per output group, for the Export page (PRD/BUILD_Export.md §3)
+#' and anything else that must know whether an output can be used. Stale
+#' outputs cannot be exported.
+#'
+#' Diagnostics, Performance and Results are cleared on every refit
+#' (\code{reset_analysis_pipeline(from_step = 4)}), so for them stale only ever
+#' means the spec moved since the fit (\code{analysis_fit_is_stale()}).
+#' Performance is also stale when its validation settings changed after the
+#' run. When Prepare has changed since Analyze › Setup froze the dataset,
+#' every group is stale.
+#'
+#' @param spec The current \code{analysis_spec} (may be \code{NULL}).
+#' @param result The \code{analysis_result} (may be \code{NULL}).
+#' @param prepare_changed Logical. The working dataset no longer matches the
+#'   frozen one (Setup's signature check).
+#' @return A named list - \code{table1}, \code{univariable}, \code{selection}
+#'   (stepwise or LASSO), \code{collinearity}, \code{model}, \code{results},
+#'   \code{diagnostics}, \code{performance} - each \code{list(status, reason)}
+#'   with \code{status} one of \code{"available"}, \code{"stale"},
+#'   \code{"not_run"}.
+#' @export
+analysis_output_status <- function(spec, result, prepare_changed = FALSE) {
+  .st <- function(status, reason = "") list(status = status, reason = reason)
+  groups <- c("table1", "univariable", "selection", "collinearity",
+              "model", "results", "diagnostics", "performance")
+
+  if (is.null(spec)) {
+    out <- lapply(groups, function(g) .st("not_run", "Start in Analyze \u203a Setup"))
+    return(stats::setNames(out, groups))
+  }
+  if (isTRUE(prepare_changed)) {
+    out <- lapply(groups, function(g) .st("stale", "Prepare changed since Analyze \u203a Setup froze the dataset"))
+    return(stats::setNames(out, groups))
+  }
+
+  vi        <- result$variable_investigation
+  has_model <- !is.null(result$fitted_models$primary_model) &&
+               identical(result$run_status$status, "success")
+  fit_stale <- has_model && analysis_fit_is_stale(spec, result)
+  refit     <- "The spec changed since the model was fitted - refit in Model \u203a Create"
+
+  # Model-derived groups: not run, stale with the fit, else available
+  .model_group <- function(present, where) {
+    if (!has_model)     return(.st("not_run", "Fit a model in Model \u203a Create"))
+    if (!isTRUE(present)) return(.st("not_run", paste("Run in", where)))
+    if (fit_stale)      return(.st("stale", refit))
+    .st("available")
+  }
+
+  perf <- .model_group(!is.null(result$performance), "Model \u203a Performance")
+  if (identical(perf$status, "available") &&
+      !.validation_matches(result$performance$validation, spec,
+                           result$specification_snapshot$model_design$model_type)) {
+    perf <- .st("stale", "Validation settings changed since the run - re-run in Model \u203a Performance")
+  }
+
+  list(
+    table1 = if (is.null(result$result_tables$table1_overall))
+      .st("not_run", "Run in Analyze \u203a Table 1") else .st("available"),
+    univariable = if (is.null(vi$univariable))
+      .st("not_run", "Run the univariable screen in Analyze \u203a Variables") else .st("available"),
+    selection = if (is.null(vi$stepwise) && is.null(vi$lasso))
+      .st("not_run", "Run stepwise or LASSO in Analyze \u203a Variables") else .st("available"),
+    collinearity = if (is.null(result$result_plots$collinearity_plots$flagged_pairs_table))
+      .st("not_run", "Open Collinearity in Analyze \u203a Variables") else .st("available"),
+    model = if (!has_model) .st("not_run", "Fit a model in Model \u203a Create")
+            else if (fit_stale) .st("stale", refit) else .st("available"),
+    results     = .model_group(!is.null(result$results_generation), "Model \u203a Results"),
+    diagnostics = .model_group(!is.null(result$diagnostics), "Model \u203a Diagnostics"),
+    performance = perf
+  )
+}
+
+# Were these validation settings (from a performance run) made with what the
+# spec asks for now? Only the settings the method uses are compared, so a
+# change to the CV folds does not stale a bootstrap run.
+.validation_matches <- function(used, spec, model_type) {
+  if (is.null(used)) return(TRUE)
+  now <- analysis_validation(spec, mixed = isTRUE(model_type %in% c("linear_mixed", "logistic_mixed")))
+  if (!identical(used$method, now$method)) return(FALSE)
+  keys <- switch(now$method,
+                 cv        = c("cv_folds", "cv_repeats", "seed"),
+                 bootstrap = c("bootstrap_reps", "seed"),
+                 character(0))
+  all(vapply(keys, function(k) identical(as.integer(used[[k]]), as.integer(now[[k]])), logical(1)))
+}
+
+
 #' Fit the analysis model described by a spec
 #'
 #' Builds the model data (the training rows when a train/test split applies —

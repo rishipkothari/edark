@@ -52,6 +52,7 @@ EDARK_LOCK_REASON <- c(
   # Nothing selected to act on
   pick_measure        = "Tick at least one measure.",
   pick_output         = "Tick at least one output.",
+  pick_export         = "Tick at least one file.",
 
   # Explore
   plot_first          = "Run a plot first."
@@ -649,7 +650,7 @@ EDARK_VERSION <- "0.9"
 #' @rdname EDARK_VERSION
 #' @keywords internal
 #' @noRd
-EDARK_LAST_UPDATE <- "2026-09-28"
+EDARK_LAST_UPDATE <- "2026-10-05"
 
 
 #' The loading splash, shown until the app is ready to use

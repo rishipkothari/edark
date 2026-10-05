@@ -3,7 +3,7 @@
 **What this is:** post-build caveats, programmatic specifics and pitfalls — *how* the code does what the PRDs specify, and the traps found while building it. Read the relevant section before changing a module.
 **What this is not:** a spec. Behaviour lives in the PRDs ([PRD_0_Master.md](PRD_0_Master.md) and the stage PRDs); if a note here contradicts a PRD, the PRD wins and the note needs updating.
 
-Sections: §N1 general pitfalls · §N2 statistical methods registry · §N3 Prepare · §N4 Explore · §N5 Report · §N6 Analyze · §N7 test data.
+Sections: §N1 general pitfalls · §N2 statistical methods registry · §N3 Prepare · §N4 Explore · §N5 Report · §N6 Analyze · §N7 test data · §N8 Export.
 
 ---
 
@@ -366,3 +366,43 @@ The modules are unchanged siblings; `module_analysis_modelspec.R` exposes two UI
 - **Noise block (zero effect on every outcome):** `donor_blood_type`, `donor_height_cm`, `or_room_number`, `surgery_start_hour`, `preop_ferritin`, `referral_source`. Backward / forward stepwise (BIC) and LASSO (`lambda.1se`) all retain 0 of 6.
 - **Weak but real:** `preop_sodium` survives a liberal univariable screen, dropped by BIC — tests p-threshold sensitivity.
 - **Missingness:** `preop_ferritin` 35% (trips `PF_MISSING_GT20`), `donor_age` 12%, `preop_albumin` 8%, `intraop_max_lactate` 5%, `preop_inr` 3%. `postop_aki_stage` NA means *no AKI*, not missing — including it in a model guts the complete-case n.
+
+---
+
+## N8 - Export Internals (`module_export.R`, `service_export.R`, `service_export_report.R`, `inst/www/edark_export.js`)
+
+Spec: §A10 and `BUILD_Export.md`. Built 2026-10-05 without being run - verify these mechanics first.
+
+### N8.1 One registry, read by the tree and by the build
+`export_items(st, data_format, report_format)` returns one row per file the zip can hold, with its status. The tree renders it and `export_job()` writes from it, and the job writes only rows whose status is `"available"`, whatever the selection says - so a stale output can never be exported, even through a selection kept from before it went stale. Add a new exportable output by adding a row in `export_items()` and a `kind` branch in `.export_write_item()`; nothing else needs to know.
+
+`st` is a plain list from `export_state()`, so everything in `service_export.R` runs without Shiny (the registry, data / text writers, notes builders and README were exercised that way with base R; the Word / PNG / zip writers were not run).
+
+### N8.2 Ids have no extension
+An item's `id` is its zip path without the extension (`data/working_dataset`); `path` has it. The data and report formats change the extension, and the selection is keyed on `id`, so switching RDS → CSV keeps the tick.
+
+### N8.3 The tree: the browser owns ticks, the server owns what to render
+The tree is plain HTML (`.export_tree()`); folders are native `<details>`. `edark_export.js` handles every tick - folder boxes tick their files and show all / some / none (`indeterminate`), counts update - and reports the ticked ids as `input$selection` and the open folders as `input$open`. Nothing round-trips on a tick.
+
+- **Re-render only when the registry changes.** `output$tree` depends on `tree_key` (ids, file names, statuses, reasons), set through an `identical()` guard (§N1.2). It renders from the server's `sel` and `open_dirs`, so a re-render (Diagnostics just ran, the format changed) keeps ticks and open folders.
+- **Defaults before the first render.** An id is ticked the first time it becomes available (if `default`). `.take_defaults()` runs in an observer *and* inside `renderUI` before building the tree: if the tree rendered first with nothing ticked, the browser would report the empty selection back and wipe the defaults.
+- **Unavailable ticks are kept server-side.** `input$selection` only ever holds available ids (disabled boxes are not reported), so the server keeps any tick on an id that is not available now; when it is re-run it comes back ticked.
+- `toggle` does not bubble - the JS listens in the capture phase. A checkbox inside `<summary>` may or may not toggle the folder depending on the browser; the JS restores the folder's open state after the click either way.
+- The JS initialises each newly rendered tree on `shiny:value` (marked `data-ready`), which also reports its selection once.
+
+### N8.4 Build & Download: ticks, then a programmatic click
+The build is a job (`export_job()` → `.export_job_step()` × n → `.export_job_finish()`), one file per step, advanced by an `invalidateLater` observer for `.EXPORT_TICK_SECS` per tick with a Cancel button - the Model › Performance pattern (§N6.9a). Progress uses the shared `edark_analysis_progress` modal (§N1.10).
+
+Progress cannot come from inside a `downloadHandler` (its messages are not flushed until the download ends), so the build runs first and the download is started for the user: the server enables the toolbar's Download Last Build button and sends `edark_export_download`, whose handler clicks it. That button has `suspendWhenHidden = FALSE`, otherwise its `href` is not set while the page is hidden. One build is kept (temp dir); the previous one and the last one at session end are deleted.
+
+A file that fails to write does not stop the build: it is skipped, listed in `README.txt` under "Not exported" and in the page's messages.
+
+### N8.5 Staleness
+`analysis_output_status(spec, result, prepare_changed)` (`service_analysis_models.R`) is the one place that decides. `prepare_changed` compares the sha256 of `dataset_working` with the frozen `dataset_signature`, as Setup does; the page computes that digest in its own reactive so it is not re-hashed per tick. Performance compares only the validation settings its method uses (`.validation_matches()`), so changing CV folds does not stale a bootstrap run.
+
+### N8.6 Notes documents and the report share builders
+Each folder's notes document is built from sections in `build_analysis_summary()`'s shape (`.export_notes_*()`), written by one sections → Word writer (`.export_add_sections()`); the compiled report reuses the same sections and the same flextable builders. The report is built once as blocks (`.export_report_blocks()`) and rendered to Word (template + `.docx_*` helpers from `generate_report.R`) or HTML (`htmltools`, base64 PNGs, `flextable::to_html()` - no pandoc).
+
+### N8.7 Collinearity matrices are stored
+Step 3 now stores `cor_matrix` and `cramers_v_matrix` in `result_plots$collinearity_plots` beside `flagged_pairs_table`, so Export draws the heatmaps without recomputing. A Step 3 run from before this change has no matrices; the heatmap items are then not listed until Collinearity is opened again.
+

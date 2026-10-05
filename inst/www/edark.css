@@ -17,6 +17,7 @@
      7  Absorbed inline CSS blocks that used to live in R
      8  Page contract       config pane, info pane, messages slot
      9  Splash              the loading overlay shown until the app is ready
+    10  Export              the zip tree on the Export page
    ========================================================================== */
 
 
@@ -971,3 +972,131 @@
     min-width: 0;
   }
 }
+
+
+/* ==========================================================================
+   10  Export - the zip tree (R/module_export.R, inst/www/edark_export.js)
+
+   The centre of the Export page is the zip itself. Folders are native
+   <details>, so opening one needs no JS; rows are one line each, the
+   checkbox, an icon, the file name, then any badge and the reason a file
+   cannot be ticked yet. Indentation shows depth - no boxes inside boxes.
+   ========================================================================== */
+
+.edark-export-tree {
+  max-height: calc(100vh - 320px);   /* EDARK_RESULT_HEIGHT */
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+}
+
+.edark-export-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.edark-export-top {
+  padding-left: 0;
+}
+
+.edark-export-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--bs-border-radius-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.edark-export-row:hover {
+  background-color: var(--bs-secondary-bg);
+}
+
+.edark-export-row .form-check-input {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.edark-export-icon {
+  width: 1rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  flex-shrink: 0;
+}
+
+.edark-export-folder-icon {
+  color: var(--edark-type-numeric);
+}
+
+.edark-export-name {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.edark-export-folder-note,
+.edark-export-reason {
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edark-export-count {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* A folder row: its own disclosure triangle, drawn so it lines up with the
+   checkbox column of the file rows beneath it */
+.edark-export-folder > details > summary {
+  list-style: none;
+  font-weight: 600;
+}
+
+.edark-export-folder > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.edark-export-folder > details > summary::before {
+  content: "\25B8";
+  width: 0.75rem;
+  margin-left: -1.1rem;
+  color: var(--bs-secondary-color);
+  transition: transform .15s ease;
+}
+
+.edark-export-folder > details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* A file that cannot be exported yet: listed so the user can see what the
+   zip could hold, greyed so it does not read as part of it */
+.edark-export-leaf.is-unavailable .edark-export-row {
+  cursor: default;
+}
+
+.edark-export-leaf.is-unavailable .edark-export-name,
+.edark-export-leaf.is-unavailable .edark-export-icon {
+  opacity: 0.55;
+}
+
+.edark-export-leaf.is-fixed .edark-export-row {
+  cursor: default;
+}
+
+.edark-export-root {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.4rem 0.4rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+

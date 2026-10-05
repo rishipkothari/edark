@@ -41,7 +41,7 @@ Settled 2026-09-22. Do not reopen without the user.
 
 | # | Decision |
 |---|---|
-| D1 | **Reports stay separate and stay where they are.** Explore › Report remains a sub-tab of Explore; it is *not* promoted to a top-level tab. Analyze › Step 6 Export is a different thing with a different job (see §1.1). The two share no UI. |
+| D1 | **Reports stay separate and stay where they are.** Explore › Report remains a sub-tab of Explore; it is *not* promoted to a top-level tab. Analyze › Step 6 Export is a different thing with a different job (see §1.1). The two share no UI. **Amended 2026-10-05:** Export is now the top-level **4 · Export** page (it works without any Analyze work - `BUILD_Export.md` X1); it still takes nothing from Explore (X2). |
 | D2 | **Keep dedicated areas for config and for "what this results in".** Settings go in a left sidebar; a right-hand info pane says what the current settings produce (sample size, pending changes, counts, checks). This generalises what Setup and Covariates already do. See Stage 4. |
 | D3 | **A dedicated messages area, separate from the info pane.** Warnings, errors, blockers and stale notices always appear in the same place, and never mixed into the neutral info pane. |
 | D4 | **Honest locking first.** Stage 1. No screenshot baseline. |

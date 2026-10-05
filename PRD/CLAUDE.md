@@ -1,6 +1,6 @@
 # CLAUDE.md — EDARK v0.9
 
-EDARK is an R package: an interactive Shiny GUI for preparing, exploring, reporting on and modelling tabular clinical research data. `edark(dataset)` → **1 · Prepare** → **2 · Explore** (Plot + Report) → **3 · Analyze**.
+EDARK is an R package: an interactive Shiny GUI for preparing, exploring, reporting on and modelling tabular clinical research data. `edark(dataset)` → **1 · Prepare** → **2 · Explore** (Plot + Report) → **3 · Analyze** → **4 · Export**.
 
 This file is the **index**: where to find things, the rules that must never be broken, current state, and doc/code discrepancies. Specs and mechanics live in the documents below — read the relevant section before changing code. What each `R/` file *does* is in the root `CLAUDE.md`; which `§` sections govern it is below.
 
@@ -16,7 +16,8 @@ This file is the **index**: where to find things, the rules that must never be b
 | [PRD_3_Analyze.md](PRD_3_Analyze.md) | §A | The analysis workflow: roles and model purpose, Table 1, variable investigation, covariates, model creation, preflight, diagnostics, performance, results, export |
 | [NOTE_implementation.md](NOTE_implementation.md) | §N | Pitfalls, the **statistical methods registry** (§N2), and as-built mechanics per stage |
 | [NOTE_UI-principles.md](NOTE_UI-principles.md) | — | Layout, action placement, visual hierarchy. Read before any UI work so it isn't reinvented each time |
-| [BUILD_Analysis.md](BUILD_Analysis.md) | — | Analyze build phases and acceptance criteria (incl. Phase 5b code generator, Phase 8 export, Phase S sessions) |
+| [BUILD_Analysis.md](BUILD_Analysis.md) | — | Analyze build phases and acceptance criteria (incl. Phase 5b code generator, Phase S sessions; Phase 8 export superseded by BUILD_Export.md) |
+| [BUILD_Export.md](BUILD_Export.md) | — | The 4 · Export page: decisions, zip layout, item registry, notes documents, tree UI, compiled report, stage status |
 | [BUILD_UI-redesign.md](BUILD_UI-redesign.md) | - | **The single UI plan** (Claude + Codex assessments merged 2026-09-22; revised 2026-09-23 from user feedback, §1.3): settled decisions, assessment, and Stages 0-6 - honest locking first, component library, CSS theme, config / result / info page contract with a messages area, flatter navigation. `bslib` + R + plain CSS only. Stage status table at the top; work one stage per session. **§1.3 holds the UI principles taken from real use (button scale, placement by scope, shared settings, no redundant surfaces) - read it before any UI work, alongside `NOTE_UI-principles.md`** |
 | [RESOLVED.md](RESOLVED.md) | — | Closed to-dos with root cause and lessons. Check here when a bug smells familiar, before re-deriving a fix |
 | [Codex proofing.md](Codex%20proofing.md) | — | Briefing notes for an external proofing agent |
@@ -52,7 +53,7 @@ Full rationale in the linked sections.
 
 1. **One state object.** All session state in `shared_state` (created in `edark.R`'s `server()`); no `<<-`, no globals; modules talk only through it (§M5).
 2. **Module convention.** `foo_ui(id)` + `foo_server(id, shared_state)`; siblings only; all server calls in `edark.R` (§M5.1).
-3. **Analyze fields are private.** `analysis_data` / `analysis_spec` / `analysis_result` are read and written only by Analyze modules; Analyze reads Prepare state only at freeze (§M5.3).
+3. **Analyze fields are private.** `analysis_data` / `analysis_spec` / `analysis_result` are written only by Analyze modules; besides Analyze, only the Session and Export modules read them, read-only. Analyze reads Prepare state only at freeze (§M5.3).
 4. **Original data is immutable.** `dataset_original` and `original_column_types` are never overwritten. After Apply, `column_types` is updated from the working dataset — the two diverge on purpose, and Columns shows Orig. vs Curr. type (§P2.3).
 5. **Compute on click; stage Prepare changes.** Nothing touches `dataset_working` until Apply. Exceptions are only those in §M2.3.
 6. **Prepare pipeline order:** start from `dataset_original` → type overrides → column selection → transforms → row filters. Do not reorder (§P7.2).
@@ -102,7 +103,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `module_analysis_diagnostics.R` | §A5.3, §N6.9 |
 | `module_analysis_performance.R` | §A5.3, §N6.9a |
 | `module_analysis_results.R` | §A5.3, §N6.10 |
-| `module_analysis_export.R` | §A10 |
+| `module_export.R` | §A10, §N8 |
 | `analysis_utils.R` | §N6.2 |
 | `service_analysis_pipeline.R` | §A8.6, §N6.13 |
 | `service_analysis_validation.R` | §A8, §N6.12 |
@@ -113,7 +114,9 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `service_analysis_tables.R` | §N6.10 |
 | `service_analysis_variable_selection.R` | §A9, §N6.5 |
 | `service_analysis_codegen.R` | §A7.9 |
-| `service_analysis_export.R` | §A10 |
+| `service_export.R` | §A10, §N8 |
+| `service_export_report.R` | §A10.4, §N8.6 |
+| `inst/www/edark_export.js` | §N8.3 |
 | `service_session.R` | §M8, §N3.5 |
 | `module_session.R` | §M8.7-M8.8, §N3.5 |
 | `data/liver_tx.rda` | §N7 |
@@ -125,7 +128,8 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 - **Prepare, Explore (Plot + Report):** built.
 - **Analyze:** Phases 0–7 and 6b complete — Setup (incl. model purpose + train/test split), Table 1, Variable Investigation, Covariate Confirmation, Model Creation, Diagnostics, Performance, Results.
 - **Built 2026-09-19:** Phase 7b performance validation — Step 1 validation method (bootstrap / cross-validation / held-out test set, mutually exclusive), settings and Cancel-able runs in Model › Performance (§A1.4a, §A5.3).
-- **Stubs and deferrals:** Export (`module_analysis_export.R`, `service_analysis_export.R`) is a placeholder; Phase 8 fills it with export materials, items disabled until created (§A10, §A5.3). Phase 5b's R code generator (`service_analysis_codegen.R`) is deferred — the R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`).
+- **Built 2026-10-05 (branch `export_v1`, not yet run in R):** the top-level **4 · Export** page - one zip of the working dataset, session file, Analyze tables / figures / notes and a compiled Word / HTML report; only current outputs exportable ([BUILD_Export.md](BUILD_Export.md), §A10, §N8). Analyze is now five steps.
+- **Stubs and deferrals:** Phase 5b's R code generator (`service_analysis_codegen.R`) is deferred — the R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`).
 - **Built 2026-09-23:** UI consistency Stage 1 - honest locking. `R/ui_helpers.R`
   (`EDARK_LOCK_REASON`, `edark_run_button()`, `edark_run_gate()`) and
   `inst/www/edark.css` now exist; every gated Analyze nav item explains itself in a
@@ -145,7 +149,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 
 Each needs a decision: change the code or change the doc.
 
-- **Analyze step count — §A and the build plan still say nine, code has six.** `module_analysis_main.R` has six top-level `nav_panel`s, with Diagnostics / Performance / Results nested as sub-tabs under **Step 5 Model** and Export as **Step 6**. §N was renumbered to match the code (2026-09-21); `PRD_3_Analyze.md` and `BUILD_Analysis.md` were **not** — doing so touches §A references throughout. Until they are, read §A's "Step 6/7/8" as the Model › Diagnostics / Performance / Results sub-tabs and "Step 9" as Step 6 Export.
+- **Analyze step count — §A and the build plan still say nine, code has five.** `module_analysis_main.R` has five top-level `nav_panel`s, with Diagnostics / Performance / Results nested as sub-tabs under **Step 5 Model**; Export moved out to the top-level **4 · Export** page (2026-10-05, §A10 rewritten). §N was renumbered to match the code (2026-09-21); the rest of `PRD_3_Analyze.md` and `BUILD_Analysis.md` were **not** — doing so touches §A references throughout. Until they are, read §A's "Step 6/7/8" as the Model › Diagnostics / Performance / Results sub-tabs and "Step 9" as 4 · Export.
 - **Trend "count" mode.** Old docs described a "None" trend variable giving `trend_count`, and a `trend_proportion` type. Code: the trend variable is required, and types are `trend_numeric` / `trend_factor`. §E5 documents the code. Decide whether an event-count mode is wanted.
 - **Dead renderer.** `render_plot()` dispatches `trend_mean`, which no spec builder produces.
 - **Dataset signature.** §A3.2 specifies a structural signature; Step 1 stores a sha256 hash of the data (see the note in §A3.2).

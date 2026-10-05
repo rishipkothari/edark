@@ -1,7 +1,7 @@
 #' Analysis Module — Main Orchestrator
 #'
 #' UI and server for the Analysis stage (Tab 4 — \code{4 · Analyze}).
-#' Renders a 6-step \code{navset_pill}; Step 5 (Model)
+#' Renders a 5-step \code{navset_pill}; Step 5 (Model)
 #' nests its own \code{navset_underline} — Summary, Create, Diagnostics,
 #' Performance, Results — and delegates each step to its own
 #' sub-module. Also registers the JS custom message handler used by the
@@ -18,7 +18,7 @@ NULL
 # Labels of the nav items whose titles are rendered from the server, so a
 # locked one can carry its own reason (see .nav_title()). They must read
 # exactly as the nav shows them - the lock reasons name destinations this way.
-.ANALYSIS_NAV_STEPS <- c(step5 = "5 \u00b7 Model", step6 = "6 \u00b7 Export")
+.ANALYSIS_NAV_STEPS <- c(step5 = "5 \u00b7 Model")
 .ANALYSIS_NAV_MODEL <- c(diagnostics = "Diagnostics", performance = "Performance",
                          results     = "Results")
 
@@ -95,11 +95,6 @@ analysis_main_ui <- function(id) {
             analysis_results_ui(ns("results"))
           )
         )
-      ),
-      bslib::nav_panel(
-        value = "step6",
-        title = shiny::uiOutput(ns("title_step6"), inline = TRUE),
-        analysis_export_ui(ns("export"))
       )
     )
   )
@@ -122,14 +117,14 @@ analysis_main_server <- function(id, shared_state) {
     analysis_diagnostics_server("diagnostics",           shared_state)
     analysis_performance_server("performance",           shared_state)
     analysis_results_server("results",                   shared_state)
-    analysis_export_server("export",                     shared_state)
 
     # ── Step gating ──────────────────────────────────────────────────────────
     # Steps 1–4 are always reachable (each shows its own guidance when Step 1
     # is incomplete). Table 1 and variable investigation are optional, so
     # Step 5 opens as soon as Step 1 has a frozen dataset and an outcome;
     # Model › Create's Run Model is gated only by its preflight. The Model
-    # sub-tabs after Create, and Export, need a fitted model.
+    # sub-tabs after Create need a fitted model. Export is not an Analyze
+    # step: it is the top-level 4 · Export page (module_export.R).
     gate <- shiny::reactive({
       spec   <- shared_state$analysis_spec
       ready  <- !is.null(shared_state$analysis_data) && !is.null(spec) &&
@@ -137,7 +132,7 @@ analysis_main_server <- function(id, shared_state) {
       fitted <- !is.null(shared_state$analysis_result$fitted_models$primary_model)
       list(
         steps = c(step1 = TRUE, step2 = TRUE, step3 = TRUE, step4 = TRUE,
-                  step5 = ready, step6 = fitted),
+                  step5 = ready),
         model = c(summary = TRUE, create = TRUE, diagnostics = fitted,
                   performance = fitted, results = fitted)
       )
@@ -147,15 +142,13 @@ analysis_main_server <- function(id, shared_state) {
     # R/ui_helpers.R, so this popover, the in-panel placeholders and the
     # disabled run buttons cannot disagree.
     lock_key <- c(step5       = "analysis_outcome",
-                  step6       = "fit_model",
                   diagnostics = "fit_model",
                   performance = "fit_model",
                   results     = "fit_model")
 
     # A step is done when its output exists and is current. Stage 3 styles the
     # class; until then it is inert. Step 4 rewrites its covariate list on
-    # every change, so done there means at least one covariate is confirmed;
-    # Step 6 is still a stub (Phase 8), so it is never done.
+    # every change, so done there means at least one covariate is confirmed.
     done <- shiny::reactive({
       spec <- shared_state$analysis_spec
       res  <- shared_state$analysis_result
@@ -167,8 +160,7 @@ analysis_main_server <- function(id, shared_state) {
                 !is.null(vi$lasso),
         step4 = length(spec$variable_roles$final_model_covariates) > 0L,
         step5 = !is.null(res$fitted_models$primary_model) &&
-                !analysis_fit_is_stale(spec, res),
-        step6 = FALSE)
+                !analysis_fit_is_stale(spec, res))
     })
 
     # Nav titles come from the server so a locked item can explain itself: the

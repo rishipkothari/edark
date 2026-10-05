@@ -408,6 +408,10 @@ Extends Phase 6b's train/test option into internal validation. PRD §A1.4a, §A5
 
 ## Phase 8 — Step 9: Export
 
+> **Superseded 2026-10-05 - moved to [BUILD_Export.md](BUILD_Export.md).** Export became the
+> top-level 4 · Export page; presets, the analysis package / manifest and xlsx tables were
+> dropped or deferred there. The plan below is kept for history only.
+
 ### What to build
 - `module_analysis_export.R` — full implementation per §5.3 Step 9 and §6.11
 - `service_analysis_export.R` — complete export assembly pipeline per §10.3–10.12

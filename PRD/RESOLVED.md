@@ -175,6 +175,21 @@ Lesson: a `tryCatch` around a value only guards computing it, not rendering it.
 
 ## Other
 
+### 2026-10-05 - "Export results functionality" and the §P9 export TO-DO (branch `export_v1`)
+
+Closed by building the top-level **4 · Export** page ([BUILD_Export.md](BUILD_Export.md),
+§A10), which also absorbs the old Prepare dataset export (§P9): one zip of the working
+dataset, a session file + readable Prepare steps, Analyze tables / figures / notes and a
+compiled Word / HTML report. Export left Analyze because it works without any Analyze work.
+Only outputs that exist and are current can be ticked; staleness is decided in one place,
+`analysis_output_status()`. Built without being run in R - verification is an open TO-DO.
+
+Decided on the way: tables in Word only (one source; merged headers survive), no
+`manifest.json` / nested analysis package (the session file reopens the work), no Explore
+outputs in the zip, presets and PDF deferred. **Durable rules: §N8** (registry read by
+tree and build, extension-free ids, browser-owned ticks with a server re-render guard,
+build-then-click download).
+
 ### 2026-09-28 - icons in navigation, three tab styles in the main panel
 
 Every navbar tab, page pill and Report tab carried a decorative Font Awesome icon, and the
