@@ -17,7 +17,8 @@ row_filter_server(id, shared_state)
 }
 \description{
 Allows the user to add row-filter criteria against any included column.
-Numeric columns get a min/max range slider; factor/character columns get a
-checkbox group of levels to retain. Multiple filters compose with AND logic.
+Numeric columns get lower / upper limit boxes (with the column's original
+range for context); factor/character columns get a button group of levels
+to retain. Multiple filters compose with AND logic.
 All filters are staged — nothing is applied until "Apply & Proceed".
 }

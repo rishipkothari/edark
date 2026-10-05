@@ -20,7 +20,7 @@ UI and server for the Results sub-tab of Step 5 (Model). The sidebar lists the
 outputs that can be generated — results table (with an optional
 unadjusted column), fit statistics, forest plot, methods paragraph — and
 one Generate Outputs button. Ticked outputs are created and stored in
-\code{analysis_result}; unticked ones are not created, so Step 6 (Export) cannot
+\code{analysis_result}; unticked ones are not created, so the Export page cannot
 export them. The Summary tab (key numbers, no prose) is always shown and
 reads what already exists.
 }

@@ -18,7 +18,7 @@ data_preview_server(id, shared_state)
 \description{
 One table at a time, chosen by two toggles: which dataset (Original or
 Working) and which view (Data or Summary). Transformed columns are tinted
-and their type label is prefixed with an arrow in the data views.
+and their type label gains a "T" badge in the data views.
 }
 \details{
 Before UI Stage 5 these four tables were three levels of tabs deep - the

@@ -18,7 +18,7 @@ all modules).}
 }
 \description{
 UI and server for the Analysis stage (Tab 4 — \code{4 · Analyze}).
-Renders a 6-step \code{navset_pill}; Step 5 (Model)
+Renders a 5-step \code{navset_pill}; Step 5 (Model)
 nests its own \code{navset_underline} — Summary, Create, Diagnostics,
 Performance, Results — and delegates each step to its own
 sub-module. Also registers the JS custom message handler used by the
