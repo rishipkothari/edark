@@ -371,7 +371,7 @@ The modules are unchanged siblings; `module_analysis_modelspec.R` exposes two UI
 
 ## N8 - Export Internals (`module_export.R`, `service_export.R`, `service_export_report.R`, `inst/www/edark_export.js`)
 
-Spec: §A10 and `BUILD_Export.md`. Built 2026-10-05 without being run - verify these mechanics first.
+Spec: §A10 and `BUILD_Export.md`. Built 2026-10-05; verified the same day in R 4.3.3 (all four model types, every file reopened, the page driven with `chromote`).
 
 ### N8.1 One registry, read by the tree and by the build
 `export_items(st, data_format, report_format)` returns one row per file the zip can hold, with its status. The tree renders it and `export_job()` writes from it, and the job writes only rows whose status is `"available"`, whatever the selection says - so a stale output can never be exported, even through a selection kept from before it went stale. Add a new exportable output by adding a row in `export_items()` and a `kind` branch in `.export_write_item()`; nothing else needs to know.
@@ -406,3 +406,9 @@ Each folder's notes document is built from sections in `build_analysis_summary()
 ### N8.7 Collinearity matrices are stored
 Step 3 now stores `cor_matrix` and `cramers_v_matrix` in `result_plots$collinearity_plots` beside `flagged_pairs_table`, so Export draws the heatmaps without recomputing. A Step 3 run from before this change has no matrices; the heatmap items are then not listed until Collinearity is opened again.
 
+
+### N8.8 Traps found verifying it
+- **gtsummary's `as_flex_table()` needs flextable >= 0.9.11**, newer than the last R 4.3 binary (0.9.7 / 0.9.8), and the version check fails inside a promise, so `tryCatch` does not reliably catch it (the first table failed, later ones did not). `.export_table1_ft()` checks `packageVersion("flextable")` and otherwise builds the table from gtsummary's display tibble, stripping its `**` / `__` bold markers.
+- **htmltools drops `tags$head` from `as.character()`** (it hoists head content for Shiny pages), so a page built as `tags$html(tags$head(...), tags$body(...))` loses its CSS and charset. `export_report_html()` writes the head as text.
+- **A download button is an `<a>`.** `shinyjs::disabled()` neither greys it nor stops the click, and Shiny strips Bootstrap's `.disabled` from a download link as soon as its handler is ready. Download Last Build uses its own class, `.edark-export-no-build` (`pointer-events: none`), which the download trigger removes.
+- An unzipped export under a deep folder can pass Windows' 260-character path limit (`variable_selection/tables/collinearity_flagged_pairs.docx` is the longest path inside the zip).

@@ -2,21 +2,20 @@
 
 > Replaces Phase 8 of `BUILD_Analysis.md`. Written 2026-10-05 from the design conversation;
 > every decision below is settled (the open questions were resolved the same day - §1).
-> **All seven stages were built 2026-10-05 on branch `export_v1`, in one pass and without
-> running R** (the container had no CRAN access); only the pure registry, data / text writers,
-> notes builders and README were exercised, with base R. Verification is the next step - see
-> §7 acceptance criteria and §N8.
+> **All seven stages were built 2026-10-05 on branch `export_v1` and verified the same day in
+> R 4.3.3**: every file of all four model types reopened, and the page driven with `chromote`
+> (tree, re-render, Cancel, auto-download). Fixes and traps from that pass: §N8.8.
 
 ## Status
 
 | Stage | Scope | Status |
 |---|---|---|
-| 1 | Move Export to a top-level `4 · Export` page; Analyze back to five steps | built, untested |
-| 2 | Item registry + output status (pure) | built, partly tested (base R) |
-| 3 | File writers + zip assembler (pure) | built; data / text / README tested, Word / PNG / zip not run |
-| 4 | Section notes documents | built; section builders tested, Word writer not run |
-| 5 | Export page UI: zip tree, info pane, build + download | built, untested (needs `chromote`) |
-| 6 | Compiled report (Word, HTML) | built, untested |
+| 1 | Move Export to a top-level `4 · Export` page; Analyze back to five steps | done, verified 2026-10-05 |
+| 2 | Item registry + output status (pure) | done, verified |
+| 3 | File writers + zip assembler (pure) | done, verified (4 model types x 2 format sets, 266 files reopened) |
+| 4 | Section notes documents | done, verified |
+| 5 | Export page UI: zip tree, info pane, build + download | done, verified with `chromote` |
+| 6 | Compiled report (Word, HTML) | done; HTML checked visually, Word opens (layout not inspected) |
 | 7 | Docs: PRDs, §N, file maps, TO-DOs | done |
 
 Order: 1 → 2 → 3 → (4, 6 independent of each other) → 5 → 7. Stage 5 can start on a

@@ -172,7 +172,10 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
     t1_keys <- t1_keys[vapply(t1_keys, function(k) !is.null(t1[[k]]), logical(1))]
   } else {
     vr <- spec$variable_roles
-    t1_keys <- t1_keys[c(TRUE, !is.null(vr$exposure_variable), !is.null(vr$outcome_variable))]
+    # The tables Table 1 will make: a stratified one only for a groupable variable
+    ad <- st$analysis_data
+    t1_keys <- t1_keys[c(TRUE, .can_stratify(ad, vr$exposure_variable %||% ""),
+                         .can_stratify(ad, vr$outcome_variable %||% ""))]
   }
   for (k in names(t1_keys)) .add("table1", "", t1_keys[[k]], "docx", "table1", "table1", key = t1_keys[[k]])
   .add("table1", "", "table1_notes", "docx", "notes", "table1", key = "table1")
@@ -643,7 +646,7 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
 
 .export_add_sections <- function(doc, sections, style = "heading 1") {
   for (sec in Filter(function(s) length(s$rows) > 0L, sections)) {
-    doc <- officer::body_add_par(doc, sec$title, style = style)
+    if (nzchar(sec$title)) doc <- officer::body_add_par(doc, sec$title, style = style)
     doc <- flextable::body_add_flextable(doc, .export_sections_ft(sec))
     doc <- officer::body_add_par(doc, "", style = "Normal")
   }
@@ -673,7 +676,37 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
 
 # ── Tables and figures, by kind ──────────────────────────────────────────────
 
-.export_table1_ft <- function(tbl) gtsummary::as_flex_table(tbl)
+# gtsummary's own Word conversion needs a newer flextable than the newest
+# R 4.3 binary (0.9.7/0.9.8) - and fails inside a promise, so tryCatch is not
+# reliable. Check the version first; otherwise build the table from gtsummary's
+# display tibble: same rows and statistics, spanning headers become one header
+# row above the columns they span.
+.export_table1_ft <- function(tbl) {
+  if (utils::packageVersion("flextable") >= "0.9.11") return(gtsummary::as_flex_table(tbl))
+  .md <- function(x) gsub("\\*\\*|__", "", x)
+  df  <- as.data.frame(gtsummary::as_tibble(tbl, col_labels = FALSE), stringsAsFactors = FALSE)
+  sty <- tbl$table_styling$header
+  sty <- sty[match(names(df), sty$column), , drop = FALSE]
+  df[] <- lapply(df, function(x) .md(ifelse(is.na(x), "", as.character(x))))
+  labels <- stats::setNames(.md(ifelse(is.na(sty$label), names(df), sty$label)), names(df))
+  ft <- .style_section_ft(df)
+  ft <- flextable::set_header_labels(ft, values = as.list(labels))
+  ft <- flextable::fontsize(ft, size = 9, part = "body")
+  ft <- flextable::fontsize(ft, size = 10, part = "header")
+  sp <- tbl$table_styling$spanning_header
+  if (is.data.frame(sp) && nrow(sp) > 0L && "spanning_header" %in% names(sp)) {
+    top <- stats::setNames(rep("", ncol(df)), names(df))
+    hit <- intersect(sp$column, names(df))
+    top[hit] <- .md(sp$spanning_header[match(hit, sp$column)])
+    if (any(nzchar(top))) {
+      ft <- flextable::add_header_row(ft, values = unname(top), colwidths = rep(1L, ncol(df)))
+      ft <- flextable::merge_h(ft, part = "header", i = 1)
+      ft <- flextable::bold(ft, part = "header")
+      ft <- flextable::align(ft, i = 1, align = "center", part = "header")
+    }
+  }
+  ft
+}
 
 .export_univariable_ft <- function(u) {
   em  <- if (identical(u$effect_measure[1L], "odds_ratio")) "OR" else "Coefficient"

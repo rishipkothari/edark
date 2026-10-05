@@ -119,9 +119,10 @@
   function onDownload(msg) {
     var a = document.getElementById(msg.id);
     if (!a) return;
-    a.classList.remove("disabled");
+    a.classList.remove("edark-export-no-build");
     a.removeAttribute("disabled");
     a.removeAttribute("aria-disabled");
+    a.removeAttribute("tabindex");
     a.click();
   }
 

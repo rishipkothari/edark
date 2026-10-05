@@ -207,7 +207,7 @@ Phases 0–7 and 6b complete; Export moved to the top-level 4 · Export page (bu
     - also with UI refresh, might be able to eliminate some of the click to lock in steps, should evaluate
 
 #### Mid magnitude
-- **Verify 4 · Export in R (branch `export_v1`).** Built without being run: `devtools::document()` (new / renamed files, NAMESPACE edited by hand), then build a zip for each model type (linear, logistic, both mixed) and check every file opens, the tree keeps ticks and open folders across a re-render, Cancel, and the auto-download (§N8, acceptance criteria in `PRD/BUILD_Export.md` §7).
+- **Export: two checks left (branch `export_v1`).** Verified 2026-10-05 except (a) the stale path driven through the UI (Prepare change after the freeze, covariate change after a fit - the logic is unit-tested) and (b) the Word report's layout opened in Word (§N8, `PRD/BUILD_Export.md` §7).
 - Export presets (Manuscript / Full archive / Data only) - deferred from `PRD/BUILD_Export.md`.
 - Export PDF report - recommended route HTML → `pagedown::chrome_print` (needs Chrome / Edge; disable with a reason when absent).
 - Export `reproduce/analysis_script.R` - listed as coming soon; needs Phase 5b.

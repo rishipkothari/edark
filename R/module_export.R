@@ -72,8 +72,13 @@ export_ui <- function(id) {
         shiny::uiOutput(ns("tree_header"), class = "me-auto small text-muted"),
         # The one action on the produced zip. Build & Download clicks it for
         # the user; it stays here to download the last build again.
-        shinyjs::disabled(edark_button(ns, "download", "Download Last Build", icon = "download",
-                                       size = "toolbar", type = "download"))
+        # A download button is an <a>: shinyjs::disabled() neither greys it
+        # nor stops the click, and Shiny strips Bootstrap's .disabled as soon
+        # as the handler is ready. Our own class (edark.css section 10) holds
+        # it off until a build exists; edark_export.js removes it (§N8.4).
+        edark_button(ns, "download", "Download Last Build", icon = "download",
+                     size = "toolbar", type = "download", class = "edark-export-no-build",
+                     `aria-disabled` = "true", tabindex = "-1")
       ),
       shiny::uiOutput(ns("tree"))
     ),
@@ -258,7 +263,6 @@ export_server <- function(id, shared_state, dataset_input) {
         out$time <- Sys.time()
         out$size <- file.size(out$zip)
         last_build(out)
-        shinyjs::enable("download")
         session$sendCustomMessage("edark_export_download", list(id = ns("download")))
       })
     })

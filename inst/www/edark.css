@@ -995,8 +995,9 @@
   padding-left: 1.4rem;
 }
 
+/* Room on the left for the top-level folders' disclosure triangle */
 .edark-export-top {
-  padding-left: 0;
+  padding-left: 1.1rem;
 }
 
 .edark-export-row {
@@ -1100,3 +1101,10 @@
   border-bottom: 1px solid var(--bs-border-color-translucent);
 }
 
+
+/* Download Last Build before any build exists. Not Bootstrap's .disabled:
+   Shiny removes that from a download link once its handler is ready. */
+.edark-export-no-build {
+  pointer-events: none;
+  opacity: 0.5;
+}

@@ -60,7 +60,9 @@ NULL
   .add <- function(...) b <<- c(b, list(...))
 
   # 1. Data preparation - always: it describes the working dataset
-  .add(.rb_h1("Data preparation"), .rb_sections(.export_prepare_sections(st)))
+  # Already headed by the h1: drop the section's own title so it is not repeated
+  prep <- lapply(.export_prepare_sections(st), function(s) { s$title <- ""; s })
+  .add(.rb_h1("Data preparation"), .rb_sections(prep))
   if (isTRUE(st$prepare_changed)) {
     .add(.rb_para(paste("Prepare changed after the analysis dataset was frozen, so the analysis",
                         "outputs are out of date and are not included. Restart the analysis in",
@@ -240,7 +242,7 @@ table.kv ul { margin: .2rem 0 0; padding-left: 1.1rem; }
 
 .export_sections_html <- function(sections) {
   lapply(sections, function(sec) htmltools::tagList(
-    htmltools::tags$h2(sec$title),
+    if (nzchar(sec$title)) htmltools::tags$h2(sec$title),
     htmltools::tags$table(class = "kv", lapply(sec$rows, function(r) {
       lvl <- if (!is.null(r$level) && r$level %in% c("warning", "error")) r$level
       htmltools::tags$tr(
@@ -290,25 +292,27 @@ export_report_html <- function(st, path) {
       NULL)
   }
 
-  page <- htmltools::tags$html(
-    lang = "en",
-    htmltools::tags$head(
-      htmltools::tags$meta(charset = "utf-8"),
-      htmltools::tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
-      htmltools::tags$title(meta$title),
-      htmltools::tags$style(htmltools::HTML(.EXPORT_REPORT_CSS))
-    ),
-    htmltools::tags$body(htmltools::div(
-      class = "page",
-      htmltools::tags$h1(class = "title", meta$title),
-      htmltools::div(class = "subtitle", meta$subtitle),
-      htmltools::tags$table(class = "facts", lapply(names(meta$facts), function(nm) {
-        htmltools::tags$tr(htmltools::tags$td(nm), htmltools::tags$td(meta$facts[[nm]]))
-      })),
-      htmltools::tags$nav(class = "toc", htmltools::tags$strong("Contents"), htmltools::tags$ol(toc)),
-      body
-    ))
+  page <- htmltools::tags$body(htmltools::div(
+    class = "page",
+    htmltools::tags$h1(class = "title", meta$title),
+    htmltools::div(class = "subtitle", meta$subtitle),
+    htmltools::tags$table(class = "facts", lapply(names(meta$facts), function(nm) {
+      htmltools::tags$tr(htmltools::tags$td(nm), htmltools::tags$td(meta$facts[[nm]]))
+    })),
+    htmltools::tags$nav(class = "toc", htmltools::tags$strong("Contents"), htmltools::tags$ol(toc)),
+    body
+  ))
+  # The head is written as text: as.character() drops a tags$head (htmltools
+  # hoists head content for Shiny pages), and with it the CSS and the charset.
+  head <- c(
+    "<head>",
+    "<meta charset=\"utf-8\">",
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+    paste0("<title>", htmltools::htmlEscape(meta$title), "</title>"),
+    paste0("<style>", .EXPORT_REPORT_CSS, "</style>"),
+    "</head>"
   )
-  writeLines(c("<!DOCTYPE html>", as.character(page)), path, useBytes = TRUE)
+  writeLines(enc2utf8(c("<!DOCTYPE html>", "<html lang=\"en\">", head, as.character(page), "</html>")),
+             path, useBytes = TRUE)
   invisible(path)
 }
