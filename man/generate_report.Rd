@@ -48,9 +48,18 @@ generate_report(
 \item{progress_fn}{Optional \code{function(fraction, detail)} called at each
 section milestone. Intended for use with \code{shiny::setProgress()}.}
 
+\item{include_dataset_summary}{Logical. Open with a summary table of the
+report's variables. Default \code{TRUE}.}
+
+\item{include_tableone}{Logical. Add a Table One of the report's variables.
+Default \code{FALSE}.}
+
 \item{include_collinearity}{Logical. Add a collinearity investigation after
 Table One: Pearson and Cramer's V heatmaps plus pairs above 0.7, over the
 same variables as Table One. Default \code{FALSE}.}
+
+\item{ggplot_theme, color_palette, show_data_labels, show_legend, legend_position}{Plot appearance applied to every plot in the report - the same settings as
+the Explore > Appearance panel.}
 }
 \value{
 Invisibly returns \code{output_path}.

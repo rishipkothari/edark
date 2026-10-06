@@ -72,6 +72,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 |---|---|
 | `edark.R` | §M4, §M5 |
 | `edark_report.R` | §E15 |
+| `edark-package.R` | §N1.17 |
 | `validate_input.R` | §P2.1 |
 | `cast_column_types.R` | §P2.2 |
 | `detect_column_types.R` | §P2.3 |

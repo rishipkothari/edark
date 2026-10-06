@@ -235,7 +235,7 @@ table.kv ul { margin: .2rem 0 0; padding-left: 1.1rem; }
 "
 
 .export_ft_html <- function(ft) {
-  html <- tryCatch(flextable::to_html(ft, type = "table"),
+  html <- tryCatch(officer::to_html(ft, type = "table"),
                    error = function(e) as.character(flextable::htmltools_value(ft)))
   htmltools::div(class = "table-wrap", htmltools::HTML(html))
 }

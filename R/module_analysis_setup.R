@@ -1029,11 +1029,11 @@ analysis_setup_server <- function(id, shared_state) {
       candidates <- names(which(vapply(rs, function(r) isTRUE(r$candidate),  logical(1))))
       clusters   <- names(which(vapply(rs, function(r) isTRUE(r$cluster),    logical(1))))
 
-      .row <- function(label, display) {
+      .row <- function(label, val) {
         shiny::div(
           class = "d-flex justify-content-between mb-1",
           shiny::tags$span(class = "text-muted small", label),
-          shiny::tags$span(class = "small fw-semibold", display)
+          shiny::tags$span(class = "small fw-semibold", val)
         )
       }
 

@@ -11,6 +11,8 @@
 #' @param max_factor_levels Integer. Factor columns with more unique values
 #'   than this will not be plotted; a warning message is returned instead.
 #'   Default `20`.
+#' @param split_panels Logical. For a two-panel plot, return the two panels as
+#'   a list instead of one combined `patchwork`. Default `FALSE`.
 #'
 #' @return A `ggplot` or `patchwork` object, or a `ggplot` error-card if the
 #'   plot cannot be generated (e.g. high-cardinality factor guard).

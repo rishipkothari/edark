@@ -639,8 +639,8 @@ edark_aesthetics_controls <- function(ns) {
 #' must match `Version:` in DESCRIPTION.
 #'
 #' `EDARK_LAST_UPDATE` is the date of the most recent commit and is maintained
-#' by hand: bump it in the same commit as the work it describes (see CLAUDE.md
-#' > Coding philosophy). It is deliberately not read from git, because an
+#' by hand: bump it in the same commit as the work it describes (see CLAUDE.md,
+#' Coding philosophy). It is deliberately not read from git, because an
 #' installed package is not a repository.
 #'
 #' @keywords internal
@@ -650,7 +650,7 @@ EDARK_VERSION <- "0.9"
 #' @rdname EDARK_VERSION
 #' @keywords internal
 #' @noRd
-EDARK_LAST_UPDATE <- "2026-10-05"
+EDARK_LAST_UPDATE <- "2026-10-06"
 
 
 #' The loading splash, shown until the app is ready to use

@@ -431,7 +431,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
 
     # ── Cross-tab navigation (requested by modules via shared_state$requested_tab) ─
     shiny::observeEvent(shared_state$requested_tab, {
-      req(!is.null(shared_state$requested_tab))
+      shiny::req(!is.null(shared_state$requested_tab))
       tab <- shared_state$requested_tab
       if (tab == "report") {
         bslib::nav_select("main_navbar", "explore")

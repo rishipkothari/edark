@@ -103,6 +103,14 @@ Messages sent with `session$sendCustomMessage()` while the server function is ru
 Measured startup, page request to `shiny:idle`: 2.4 s warm, 4.1 s cold (the extra is R lazily loading namespaces the first time module servers touch them). All of it is after the page arrives, which is why an in-page splash covers it. Do not time the gap from `edark()` being called - that includes however long the user takes to reach the browser.
 
 
+### N1.17 Imports, globals and ASCII - keeping `devtools::check()` at 0/0
+- `R/edark-package.R` holds the package-level `@importFrom` (base `stats` / `utils` functions used unqualified, `rlang::.data`) and `utils::globalVariables()` for NSE column names. A new unqualified `median()` / `head()` etc. goes there; a new NSE column name goes in `globalVariables()`.
+- A package in Imports must be called somewhere with `::`. One needed only indirectly (broom for `gtsummary::add_p()`, smd for `add_difference()`, knitr for the Rmd template) is referenced in `.edark_runtime_deps()`; a package nothing needs is removed from DESCRIPTION.
+- R code must be ASCII outside comments: write `"\u00b7"`, not a literal middle dot, in strings.
+- Roxygen runs markdown: a doc line starting with `>` is a block quote and fails `document()`.
+- `to_html()` for a flextable is `officer::to_html()` - flextable only registers the S3 method and does not export a `to_html`.
+- Rtools is not needed: the package has no compiled code. Run `options(buildtools.check = function(action) TRUE)` before `devtools::check()`.
+
 ---
 
 ## N2 — Statistical Methods Registry

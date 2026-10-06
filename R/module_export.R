@@ -466,11 +466,11 @@ export_server <- function(id, shared_state, dataset_input) {
     shiny::div(
       class = "edark-export-tree-links small mb-2",
       shiny::tags$a(href = "#", `data-export-select` = "all", "Select all"),
-      " · ",
+      " \u00b7 ",
       shiny::tags$a(href = "#", `data-export-select` = "none", "Clear"),
-      " · ",
+      " \u00b7 ",
       shiny::tags$a(href = "#", `data-export-expand` = "all", "Expand all"),
-      " · ",
+      " \u00b7 ",
       shiny::tags$a(href = "#", `data-export-expand` = "none", "Collapse all")
     ),
     shiny::div(class = "edark-export-root",

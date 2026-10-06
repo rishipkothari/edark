@@ -339,7 +339,7 @@ report_server <- function(id, shared_state) {
 
     # Initialise selected_vars when the working dataset is first available
     shiny::observe({
-      req(shared_state$dataset_working)
+      shiny::req(shared_state$dataset_working)
       if (is.null(selected_vars()))
         selected_vars(eligible_vars())
     })

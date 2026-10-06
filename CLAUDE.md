@@ -30,6 +30,7 @@ Browser-side behaviour (reactable patching, JS handlers) can only be tested by d
 R/
 ├── edark.R                     Entry point: validates input, casts types, builds UI+server
 ├── edark_report.R              Programmatic API: edark_report() — no Shiny required
+├── edark-package.R             Package doc; package-level @importFrom (stats / utils / rlang) and globalVariables (§N1.17)
 ├── validate_input.R            Input guard called before Shiny launches
 ├── cast_column_types.R         Auto-cast rules — runs once at launch
 ├── detect_column_types.R       Returns named char vector: col → "numeric"/"factor"/"datetime"/"character"
@@ -216,13 +217,3 @@ Phases 0–7 and 6b complete; Export moved to the top-level 4 · Export page (bu
 - Splash card overflows on mid-width windows. After the 2x scale-up its min-width is 800px, but the fallback rule in `edark.css` section 9 only triggers below 460px, so roughly 460-840px of window width overflows horizontally. Raise that breakpoint to about 880px.
 - add color palettes that have more colors in them than 8 - shoot for maybe 20?
 - `shinytest2` module tests + `testthat` unit tests.
-- **Install Rtools 4.5 and get `devtools::check()` to 0/0/0.** `devtools::check()`
-  currently dies at "Could not find tools necessary to compile a package" - Rtools is
-  not installed (https://cran.r-project.org/bin/windows/Rtools/). The package has no
-  compiled code, so the gate can be skipped with
-  `options(buildtools.check = function(action) TRUE)`, but installing Rtools is the real
-  fix. With the gate skipped on 2026-09-24 the check ran 0 errors, 2 warnings, 1 note;
-  the roxygen errors are closed (`PRD/RESOLVED.md`) and what remains is undeclared
-  imports - `@importFrom` for the `stats` / `utils` functions used (`median`, `sd`,
-  `IQR`, `na.omit`, `quantile`, `setNames`, `modifyList`, `str`, ...) plus a
-  `utils::globalVariables()` entry for `.data` and the NSE column names.

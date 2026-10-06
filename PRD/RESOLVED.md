@@ -175,6 +175,18 @@ Lesson: a `tryCatch` around a value only guards computing it, not rendering it.
 
 ## Other
 
+### 2026-10-06 - `devtools::check()` to 0 errors, 0 warnings
+
+Was: 3 warnings, 1 note, plus a `document()` error. Causes: a literal middle dot in R strings
+(`module_export.R`); `htmltools` used but not in Imports; nine Imports never used (DT, stringr,
+forcats, tidyr, jsonlite, correlation, parameters, insight, broom.mixed - removed);
+`flextable::to_html` does not exist, so the HTML report's tables always fell back to
+`htmltools_value()` - now `officer::to_html()`; undocumented arguments of `generate_report()`
+and `render_plot()`; unqualified `stats` / `utils` functions, `.data` and NSE names; two
+`req()` calls without `shiny::`; a roxygen line starting with `>` (block quote). Rtools is not
+needed - skip the gate. Remaining notes are environmental (shinytest2 not installed, clock
+check). **Durable rule: §N1.17**
+
 ### 2026-10-05 - "Export results functionality" and the §P9 export TO-DO (branch `export_v1`)
 
 Closed by building the top-level **4 · Export** page ([BUILD_Export.md](BUILD_Export.md),

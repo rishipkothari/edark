@@ -26,9 +26,11 @@ dataset, the files that reproduce it, Table 1, variable selection, the
 model, diagnostics, performance and a compiled report.
 }
 \details{
-Page contract (D6): the config pane holds the formats and Build & Download;
-the centre is the zip itself as a folder tree, where ticking a file is
-selecting it (X12); the info pane counts what the zip will hold. Items whose
+Page contract (D6): the config pane holds only Build & Download; the centre
+is the zip itself as a folder tree, where ticking a file is selecting it
+(X12) and the file's options - data format, report format, the session's
+input dataset - sit on its row; the info pane counts what the zip will
+hold. Items whose
 output has not been created, or is stale, are listed but cannot be ticked
 (X9).
 

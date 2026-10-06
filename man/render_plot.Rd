@@ -16,6 +16,9 @@ render_plot(spec, dataset, max_factor_levels = 20, split_panels = FALSE)
 \item{max_factor_levels}{Integer. Factor columns with more unique values
 than this will not be plotted; a warning message is returned instead.
 Default \code{20}.}
+
+\item{split_panels}{Logical. For a two-panel plot, return the two panels as
+a list instead of one combined \code{patchwork}. Default \code{FALSE}.}
 }
 \value{
 A \code{ggplot} or \code{patchwork} object, or a \code{ggplot} error-card if the

@@ -9,7 +9,7 @@ Description: Provides an interactive Shiny GUI for exploratory data analysis
     workflows. A researcher passes a pre-loaded dataset to edark(dataset),
     manipulates it through a structured preparation stage, explores variables
     and their relationships through interactive visualizations, and optionally
-    generates a publication-quality report — all without writing analysis code.
+    generates a publication-quality report - all without writing analysis code.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -22,11 +22,8 @@ Imports:
     shinyWidgets,
     waiter,
     dplyr,
-    tidyr,
     tibble,
     lubridate,
-    stringr,
-    forcats,
     ggplot2 (>= 4.0.0),
     scales,
     ggpubr,
@@ -44,25 +41,21 @@ Imports:
     rmarkdown,
     knitr,
     base64enc,
-    DT,
     lme4,
     lmerTest,
     glmnet,
     broom,
-    broom.mixed,
-    parameters,
     performance,
-    insight,
-    correlation,
     lmtest,
     pROC,
     detectseparation,
     haven,
     writexl,
-    jsonlite,
     zip,
     digest,
     magrittr,
+    htmltools,
+    rlang,
     smd
 Suggests:
     testthat (>= 3.0.0),

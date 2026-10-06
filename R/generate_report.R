@@ -1358,9 +1358,16 @@
 #' @param output_path Absolute path to write the report to.
 #' @param progress_fn Optional \code{function(fraction, detail)} called at each
 #'   section milestone. Intended for use with \code{shiny::setProgress()}.
+#' @param include_dataset_summary Logical. Open with a summary table of the
+#'   report's variables. Default \code{TRUE}.
+#' @param include_tableone Logical. Add a Table One of the report's variables.
+#'   Default \code{FALSE}.
 #' @param include_collinearity Logical. Add a collinearity investigation after
 #'   Table One: Pearson and Cramer's V heatmaps plus pairs above 0.7, over the
 #'   same variables as Table One. Default \code{FALSE}.
+#' @param ggplot_theme,color_palette,show_data_labels,show_legend,legend_position
+#'   Plot appearance applied to every plot in the report - the same settings as
+#'   the Explore > Appearance panel.
 #'
 #' @return Invisibly returns \code{output_path}.
 #'
