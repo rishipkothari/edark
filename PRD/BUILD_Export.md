@@ -183,30 +183,47 @@ Word, next to the session file it describes).
 
 Page contract (D6): `edark_page(config, result, info, messages)`. As built - mechanics in §N8.
 
-**Config (left).** Only the primary action **Build & Download** (D10), disabled with a
-reason when nothing is ticked, and the patient-level-data governance note. Nothing is
-chosen here: the tree is the one place to choose (revised 2026-10-05 - formats in the left
-pane and files in the tree were two places to pick the same zip).
+**Written for a basic user, not a technical one** (revised 2026-10-06). The page never
+shows a file name, a folder path or a word like "reproduce": the zip keeps its layout
+(§2), the page describes what each thing *is*.
 
-**File options sit on their rows.** `analysis_report` has a Word / HTML select,
-`working_dataset` an RDS / CSV / SPSS / Stata / Excel select, `session.edark.rds` an
-"include input dataset" checkbox. Each is disabled while its file is unticked; so "no
-report" or "no dataset" is just unticking the file.
+**Config (left).** The primary action **Build & Download** (D10), disabled with a reason
+when nothing is ticked; "n items selected" and how many more become available through
+Analyze; Select all · Clear; **Download Last Build Again** (outline, inactive until a build
+exists); the patient-level-data governance note. Nothing is chosen here - the checklist is
+the one place to choose (revised 2026-10-05: formats in the left pane and files in the
+tree were two places to pick the same zip).
 
-**Centre - the zip tree.** A right-aligned toolbar above it: "n of m available files
-selected" on the left, **Download Last Build** (disabled until a build exists) on the right.
-Then Select all · Clear · Expand all · Collapse all, the zip's root line, README.txt (always
-included), the report, and one folder per stage with `tables/` and `figures/` inside.
+**Centre - the checklist.** One section per zip folder, in zip order, each a heading
+(title + a line on what it is) and its items:
 
-- No icons and no bullets: checkbox, file name, the file's option, badge / reason. Depth is indentation plus one guide line per level.
-- Folders are native `<details>`; collapsed by default; each shows "ticked of available".
-- Ticks, tri-state folder boxes and counts are handled in `inst/www/edark_export.js`; the
-  selection and the open folders are reported to the server, which re-renders the tree only
-  when the registry changes and renders it with its own copy of both (§N8.3).
-- Not-run, stale and coming-soon files are disabled, dimmed, with an `edark_badge()` and the
-  reason.
+| Section | Zip folder |
+|---|---|
+| Report | root (`analysis_report`) |
+| Your data | `data/` |
+| Pick up where you left off | `reproduce/` |
+| Table 1 | `table1/` |
+| Choosing variables | `variable_selection/` |
+| Model results | `model/` |
+| Model checks | `diagnostics/` |
+| Model performance | `performance/` |
 
-**Info (right).** "The zip will hold": per folder "k of n", total files (README included).
+- Items are named by what they are ("Results table", "Normal Q-Q plot", "Notes on how this
+  was done"), then their type in muted text (Word / Image / Text). Labels:
+  `.EXPORT_ITEM_LABELS` in `module_export.R`.
+- A section with more than one item has a box that ticks all of it (tri-state). A section
+  holding both tables and figures is split under small Tables / Figures / Other labels.
+- A section with nothing available yet is one line: its title, greyed, and "Not available
+  yet - <where it is made>". Within a section that has something available, not-run and
+  stale items are listed greyed with the reason; stale ones carry an "out of date" badge.
+- No icons, bullets, counts or folder disclosure.
+- **Options sit on their rows.** The report has a Word / HTML select, the working dataset
+  an RDS / CSV / SPSS / Stata / Excel select, the session file an "include my original
+  data" checkbox. Each is disabled while its item is unticked, so "no report" or "no
+  dataset" is just unticking it.
+- README.txt is always written and not listed; the info pane says so.
+
+**Info (right).** "The zip will hold": per section "k of n" (section names, not folders), total files (README included).
 "Source": working dataset dims, Analyze state (model type / stale / not started), data
 format, report format and session data (each only when that file is ticked). After a build: time, files, size, files left out. (The size estimate before a build
 was dropped - an honest number only exists after the build.)

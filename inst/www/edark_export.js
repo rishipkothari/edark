@@ -1,17 +1,16 @@
 /* ==========================================================================
-   EDARK - the Export page's zip tree (R/module_export.R, PRD/BUILD_Export.md)
+   EDARK - the Export page's checklist (R/module_export.R, PRD/BUILD_Export.md)
 
-   The tree is rendered by the server; everything a tick does happens here, so
-   ticking never round-trips or re-renders:
-     - a folder's box ticks / clears every available file under it, and shows
-       all / some / none (the indeterminate state) from its files;
-     - each folder shows "ticked of available";
-     - the ticked file ids go to input$<tree data-input>, the open folders to
-       input$<tree data-open-input>, so a server re-render can restore both;
-     - a file's options on its row (.edark-export-opt: data / report format,
-       the session's input dataset) are ordinary Shiny inputs bound by id;
-       here they are only disabled while their file is unticked, and a format
-       select renames the file on its row.
+   The checklist is rendered by the server; everything a tick does happens
+   here, so ticking never round-trips or re-renders:
+     - a section's box ticks / clears every available item in it, and shows
+       all / some / none (the indeterminate state) from its items;
+     - the ticked item ids go to input$<checklist data-input>, so a server
+       re-render can restore them;
+     - an item's options on its row (.edark-export-opt: data / report format,
+       the session's original data) are ordinary Shiny inputs bound by id;
+       here they are only disabled while their item is unticked.
+   Select all / Clear sit in the config pane, outside the checklist.
    Plus one message handler: start the download once a build is ready.
    ========================================================================== */
 
@@ -23,38 +22,20 @@
       scope.querySelectorAll("input.edark-export-box:not([disabled])"));
   }
 
-  // Folder boxes and counts from their files, deepest folders first
-  function syncFolders(tree) {
-    var folders = Array.prototype.slice.call(tree.querySelectorAll("details[data-folder]")).reverse();
-    folders.forEach(function (d) {
-      var boxes = leaves(d);
+  // Section boxes from their items
+  function syncSections(tree) {
+    tree.querySelectorAll("[data-folder]").forEach(function (s) {
+      var box = s.querySelector(".edark-export-section-head input.edark-export-folder-box");
+      if (!box) return;
+      var boxes = leaves(s);
       var on = boxes.filter(function (b) { return b.checked; }).length;
-      var box = d.querySelector(":scope > summary > input.edark-export-folder-box");
-      var count = d.querySelector(":scope > summary > .edark-export-count");
-      if (box) {
-        box.disabled = boxes.length === 0;
-        box.checked = boxes.length > 0 && on === boxes.length;
-        box.indeterminate = on > 0 && on < boxes.length;
-      }
-      if (count) count.textContent = boxes.length === 0 ? "" : on + " of " + boxes.length;
+      box.disabled = boxes.length === 0;
+      box.checked = boxes.length > 0 && on === boxes.length;
+      box.indeterminate = on > 0 && on < boxes.length;
     });
   }
 
-  function report(tree) {
-    if (!window.Shiny || !Shiny.setInputValue) return;
-    var ids = leaves(tree).filter(function (b) { return b.checked; })
-                          .map(function (b) { return b.getAttribute("data-id"); });
-    Shiny.setInputValue(tree.getAttribute("data-input"), ids);
-  }
-
-  function reportOpen(tree) {
-    if (!window.Shiny || !Shiny.setInputValue) return;
-    var open = Array.prototype.slice.call(tree.querySelectorAll("details[data-folder][open]"))
-                    .map(function (d) { return d.getAttribute("data-folder"); });
-    Shiny.setInputValue(tree.getAttribute("data-open-input"), open);
-  }
-
-  // A file's options only apply when the file is ticked
+  // An item's options only apply when the item is ticked
   function syncOptions(tree) {
     tree.querySelectorAll(".edark-export-opt").forEach(function (o) {
       var box = o.closest(".edark-export-row").querySelector("input.edark-export-box");
@@ -65,8 +46,15 @@
     });
   }
 
+  function report(tree) {
+    if (!window.Shiny || !Shiny.setInputValue) return;
+    var ids = leaves(tree).filter(function (b) { return b.checked; })
+                          .map(function (b) { return b.getAttribute("data-id"); });
+    Shiny.setInputValue(tree.getAttribute("data-input"), ids);
+  }
+
   function sync(tree) {
-    syncFolders(tree);
+    syncSections(tree);
     syncOptions(tree);
     report(tree);
   }
@@ -75,57 +63,28 @@
     var t = e.target;
     var tree = t.closest && t.closest(".edark-export-tree");
     if (!tree) return;
-    if (t.matches("select.edark-export-opt")) {
-      var name = t.closest(".edark-export-row").querySelector(".edark-export-name");
-      if (name) name.textContent = t.getAttribute("data-stem") + "." + t.value;
-      return;
-    }
     if (t.classList.contains("edark-export-folder-box")) {
-      var d = t.closest("details");
-      leaves(d).forEach(function (b) { b.checked = t.checked; });
+      leaves(t.closest("[data-folder]")).forEach(function (b) { b.checked = t.checked; });
     }
     if (t.classList.contains("edark-export-folder-box") || t.classList.contains("edark-export-box")) {
       sync(tree);
     }
   });
 
-  // A checkbox inside <summary> must not also open / close its folder. Browsers
-  // differ on whether it does, so whatever happens, put the folder back.
+  // Select all / Clear, in the config pane
   document.addEventListener("click", function (e) {
-    var t = e.target;
-    if (t.classList && t.classList.contains("edark-export-folder-box")) {
-      var folder = t.closest("details");
-      var was = folder.open;
-      setTimeout(function () { if (folder.open !== was) folder.open = was; }, 0);
-      return;
-    }
-
-    var link = t.closest && t.closest("[data-export-select], [data-export-expand]");
+    var link = e.target.closest && e.target.closest("[data-export-select]");
     if (!link) return;
-    var tree = link.closest(".edark-export-tree");
-    if (!tree) return;
     e.preventDefault();
-    if (link.hasAttribute("data-export-select")) {
-      var all = link.getAttribute("data-export-select") === "all";
-      leaves(tree).forEach(function (b) { b.checked = all; });
-      sync(tree);
-    } else {
-      var expand = link.getAttribute("data-export-expand") === "all";
-      tree.querySelectorAll("details[data-folder]").forEach(function (d) { d.open = expand; });
-      reportOpen(tree);
-    }
-  }, true);
+    var tree = document.querySelector(".edark-export-tree");
+    if (!tree) return;
+    var all = link.getAttribute("data-export-select") === "all";
+    leaves(tree).forEach(function (b) { b.checked = all; });
+    sync(tree);
+  });
 
-  // <details> toggle does not bubble: listen in the capture phase
-  document.addEventListener("toggle", function (e) {
-    var t = e.target;
-    if (!t.matches || !t.matches("details[data-folder]")) return;
-    var tree = t.closest(".edark-export-tree");
-    if (tree) reportOpen(tree);
-  }, true);
-
-  // After the server renders a tree: set folder states and report the
-  // selection the tree was rendered with
+  // After the server renders a checklist: set section states and report the
+  // selection it was rendered with
   $(document).on("shiny:value", function () {
     setTimeout(function () {
       document.querySelectorAll(".edark-export-tree:not([data-ready])").forEach(function (tree) {

@@ -55,7 +55,7 @@ R/
 ├── module_explore_output.R     Explore result pane — plot + action toolbar; variable summary and custom-report state go to the info pane
 ├── module_appearance.R         Explore › Appearance panel — the app's only plot-aesthetics controls; sole writer of the five aesthetic shared_state fields
 ├── module_report.R             Report tab — Full / Custom underline tabs; Full has a config pane + resolved section list, Custom has no centre (D11)
-├── module_export.R             4 · Export page - Build & Download (config), the zip as a folder tree with each file's format / options on its row (centre), zip contents (info); ticked build with Cancel, then auto-download (§A10, §N8)
+├── module_export.R             4 · Export page - Build & Download (config), left pane also holds selection count, Select all / Clear and Download Again; the zip as a plain-language checklist in sections, options on their rows (centre), zip contents (info); ticked build with Cancel, then auto-download (§A10, §N8)
 ├── service_export.R            Export registry export_items() (every file + available / stale / not run), file writers, per-folder notes docs, README, build job; pure
 ├── service_export_report.R     Compiled export report - one block list rendered to Word (template + .docx_* helpers) or self-contained HTML; pure
 │
@@ -100,7 +100,7 @@ inst/
 │                                      section furniture are built in .assemble_docx()
 └── www/
     ├── edark.css
-    └── edark_export.js    Export page zip tree: tri-state folders, selection / open folders to the server, download trigger (§N8.3)
+    └── edark_export.js    Export page checklist: tri-state sections, selection to the server, option enabling, download trigger (§N8.3)
 ### What each file is for
 
 | File | Holds | Read it when |

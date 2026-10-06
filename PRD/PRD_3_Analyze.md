@@ -894,7 +894,7 @@ Sidebar: "Outputs" checkboxes (Results table + indented "Include unadjusted esti
 
 ### A6.11 Step 9 — Export
 
-Now the top-level 4 · Export page (§A10): Build & Download left, the zip tree in the centre (files ticked there, formats and the session option on their rows), what the zip will hold in the info pane.
+Now the top-level 4 · Export page (§A10): Build & Download left, a plain-language checklist of what to export in the centre (items ticked there, formats and the session option on their rows), what the zip will hold in the info pane.
 
 ---
 
