@@ -115,10 +115,16 @@ The same values drive the plot on screen, **Full Report** generation, and each *
 | Setting | Options | Default |
 |---|---|---|
 | Plot theme | Minimal · Publication · Cowplot · Economist · FiveThirtyEight · Tufte · Modern | Minimal |
-| Colour palette | Set2 · Set1 · Dark2 · Paired · Accent · Blues · Greens · Reds · Purples | Set2 |
+| Colour palette | Distinct, up to 10 levels: Set 2 · Set 1 · Dark 2 · Okabe-Ito · Tableau 10. Distinct, many levels: Paired (12) · Set 3 (12) · Tableau 20 · Kelly (20) · Alphabet (26) · Polychrome (36). Shades, any number: Viridis · Blues · Greens · Reds · Purples | Set 2 |
 | Show data labels | on / off | off |
 | Show legend | on / off | on |
 | Legend position | right · left · top · bottom | top |
+
+### E7.1 More levels than the palette has colours
+
+A distinct-colour palette is never stretched: blending its colours gives muddy, look-alike ones. When the plot on screen colours a variable with more levels than the chosen palette has, it is drawn with the smallest palette that fits (Tableau 10, then Tableau 20, then Polychrome 36), and that palette becomes the session's palette: the Appearance picker moves to it and later plots and reports use it. The messages area says so - *"Set 2 has 8 colours, but transplant_center has 12 levels - switched to Tableau 20"* - for as long as that plot is on screen with that palette. Picking a small palette again for the same plot switches again.
+
+Shade palettes interpolate to any number of levels and never switch. Past 36 levels (the plot's own 20-level cap normally prevents it) colours are evenly spaced hues. A report or `edark_report()` call made with a palette that is too small uses the fitting palette silently.
 
 ---
 
@@ -162,7 +168,7 @@ The same values drive the plot on screen, **Full Report** generation, and each *
 |---|---|
 | Describe / Correlate | `primary_variable`, `primary_variable_role` (default `"exposure"`), `secondary_variable`, `stratify_variable`, `bar_display` (count / proportion) |
 | Trend | `trend_timestamp_variable`, `trend_variable`, `trend_summary_stat` (default `"mean_sd"`), `trend_resolution` (default `"Month"`), `trend_stratify_variable`, `trend_zero_baseline`, `trend_impute_zero` (default TRUE) |
-| Plot | `plot_specification`, `active_plot`, `variable_summary`, `explore_needs_refresh` |
+| Plot | `plot_specification`, `active_plot`, `variable_summary`, `explore_needs_refresh`, `palette_switch` (§E7.1) |
 | Aesthetics | `ggplot_theme`, `color_palette`, `show_data_labels`, `show_legend`, `legend_position` |
 | Custom report | `custom_report_items`, `requested_tab`, `requested_report_subtab` |
 

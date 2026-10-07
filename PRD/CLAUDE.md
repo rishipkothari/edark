@@ -79,6 +79,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `route_plot_type.R` | §E4 |
 | `build_plot_spec.R` | §E3–E5 |
 | `render_plot.R` | §E8, §N4 |
+| `plot_palettes.R` | §E7, §E7.1, §N4.9 |
 | `build_variable_summary.R` | §E6.1 |
 | `stats_inference.R` | §N2 |
 | `generate_report.R` | §E10–E15, §N5 |

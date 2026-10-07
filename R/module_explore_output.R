@@ -119,6 +119,19 @@ explore_output_server <- function(id, shared_state) {
         trend_zero_baseline = trend_zero_baseline
       ))
 
+      # Palette too small for this plot: render_plot() already draws it with
+      # the palette that fits; ask Appearance (the palette's only writer) to
+      # make that palette the session's, and say so in the messages (§E7.1).
+      sw <- .palette_switch_needed(spec_with_aesthetics, dataset)
+      # Stamped so it is never identical() to the last one (reactiveValues
+      # ignores an identical write): re-picking the small palette for the same
+      # plot must switch again. Once switched the palette fits, so no loop.
+      if (!is.null(sw)) {
+        sw$spec <- spec
+        sw$at   <- Sys.time()
+        shared_state$palette_switch <- sw
+      }
+
       gg <- render_plot(spec_with_aesthetics, dataset)
 
       # Store the raw ggplot for report export
@@ -246,11 +259,24 @@ explore_output_server <- function(id, shared_state) {
 
     # -- Messages: stale data, and anything else this page must say -----------
     edark_messages_server(output, shiny::reactive({
-      if (!isTRUE(shared_state$explore_needs_refresh)) return(NULL)
-      list(edark_message(
+      stale <- if (isTRUE(shared_state$explore_needs_refresh)) edark_message(
         "stale", "The dataset has changed since this plot was drawn.",
         detail = "Re-run the plot to update it."
-      ))
+      )
+
+      # Shown while the switched palette is in force on the plot it was made for
+      sw <- shared_state$palette_switch
+      palette <- if (!is.null(sw) &&
+                     identical(sw$spec, shared_state$plot_specification) &&
+                     identical(shared_state$color_palette, sw$to)) edark_message(
+        "warn",
+        sprintf("%s has %d colours, but %s has %d levels - switched to %s.",
+                .palette_label(sw$from), .EDARK_PALETTES[[sw$from]]$max,
+                sw$column, sw$n, .palette_label(sw$to)),
+        detail = "It stays the palette for the rest of the session; change it in Appearance."
+      )
+
+      list(stale, palette)
     }))
 
 

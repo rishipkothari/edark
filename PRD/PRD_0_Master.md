@@ -174,8 +174,8 @@ Layout, action placement and visual hierarchy follow [NOTE_UI-principles.md](NOT
 | Prepare revert | `last_applied_specs`, `revert_trigger` | Prepare Apply / Reset / revert | Prepare modules; Analyze at freeze |
 | Explore (Describe / Correlate) | `primary_variable`, `primary_variable_role`, `secondary_variable`, `stratify_variable`, `bar_display` | Explore controls | Explore output |
 | Explore (Trend) | `trend_timestamp_variable`, `trend_variable`, `trend_summary_stat`, `trend_resolution`, `trend_stratify_variable`, `trend_zero_baseline`, `trend_impute_zero` | Trend controls | Explore output |
-| Plot | `plot_specification`, `active_plot`, `variable_summary`, `explore_needs_refresh` | Explore controls / output; Prepare Apply sets the refresh flag | Explore output |
-| Aesthetics | `ggplot_theme`, `color_palette`, `show_data_labels`, `show_legend`, `legend_position` | Explore controls | Explore output |
+| Plot | `plot_specification`, `active_plot`, `variable_summary`, `explore_needs_refresh`, `palette_switch` | Explore controls / output; Prepare Apply sets the refresh flag | Explore output; Appearance reads `palette_switch` (§E7.1) |
+| Aesthetics | `ggplot_theme`, `color_palette`, `show_data_labels`, `show_legend`, `legend_position` | Appearance only | Explore output; Report |
 | Custom report | `custom_report_items`, `requested_tab`, `requested_report_subtab` | Explore output; Report | Report; `edark.R` navigation observer |
 | Analyze | `analysis_data`, `analysis_spec`, `analysis_result` | Analyze modules only | Analyze modules, plus Session and Export read-only (§M5.3) |
 | Session | `session_restore` | Session module | Analyze Steps 1 and 4, which clear it (§M8.7) |

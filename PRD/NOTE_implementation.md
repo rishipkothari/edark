@@ -197,6 +197,19 @@ added to both `publish_state()` bodies - set it or clear it - or the leftover co
 
 ---
 
+### N4.9 Plot colours come only from `.scale_palette()`
+Never call `scale_*_brewer()` / `scale_*_manual()` for a variable's colours in `render_plot.R`:
+Brewer leaves levels past the palette's size grey with only a console warning. Use
+`.scale_palette(aesthetics, palette, ...)` (`R/plot_palettes.R`), which draws from
+`edark_palette_colours()` and so always returns n colours. A new palette is one entry in
+`.EDARK_PALETTES` (and its colours in `.palette_qualitative()` if distinct) - the picker is
+built from that list. A new plot type, or a change to what one colours by, must also update
+`.plot_colour_column()`, or the session-wide switch and its message (§E7.1) will not fire.
+The switch is requested through `shared_state$palette_switch` because Appearance is the only
+writer of `color_palette`; the request is stamped with `Sys.time()` because `reactiveValues`
+ignores an identical write, and the same switch must fire again if the user re-picks the
+small palette.
+
 ## N5 — Report Internals
 
 ### N5.1 Generators and assemblers

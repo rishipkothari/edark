@@ -88,6 +88,16 @@ appearance_controls_server <- function(id, shared_state) {
         shared_state$color_palette <- val
     })
 
+    # A plot needed more colours than the palette has (§E7.1): adopt the
+    # palette that fits for the rest of the session, and show it in the picker.
+    shiny::observeEvent(shared_state$palette_switch, {
+      to <- shared_state$palette_switch$to
+      if (!is.null(to) && !identical(shared_state$color_palette, to)) {
+        shared_state$color_palette <- to
+        shinyWidgets::updatePickerInput(session, "color_palette", selected = to)
+      }
+    })
+
     shiny::observeEvent(input$show_data_labels, {
       val <- isTRUE(input$show_data_labels)
       if (!identical(shared_state$show_data_labels, val))

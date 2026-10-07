@@ -259,6 +259,7 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
       active_plot             = NULL,
       variable_summary        = NULL,
       explore_needs_refresh   = FALSE,
+      palette_switch          = NULL,     # Explore output -> Appearance: palette too small for the plot (§E7.1)
 
       # Aesthetics
       ggplot_theme            = "minimal",

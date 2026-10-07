@@ -193,7 +193,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fill = .data[[col_a]]
     )) +
       ggplot2::geom_col(colour = "#555555", linewidth = 0.3) +
-      ggplot2::scale_fill_brewer(palette = palette, guide = "none") +
+      .scale_palette("fill", palette, guide = "none") +
       ggplot2::facet_wrap(as.formula(paste("~", stratify)), scales = "fixed",
                           labeller = ggplot2::label_both) +
       ggplot2::labs(x = col_a, y = y_label) +
@@ -235,7 +235,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fill = .data[[col_a]]
     )) +
       ggplot2::geom_col(colour = "#555555", linewidth = 0.3) +
-      ggplot2::scale_fill_brewer(palette = palette, guide = "none") +
+      .scale_palette("fill", palette, guide = "none") +
       ggplot2::labs(x = col_a, y = y_label) +
       ggplot2::theme(axis.text.x = ggplot2::element_text(size = 11))
 
@@ -288,8 +288,8 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fill   = .data[[stratify]]
     )) +
       ggplot2::geom_density(linewidth = 0.9, alpha = 0.15) +
-      ggplot2::scale_colour_brewer(palette = palette, name = stratify) +
-      ggplot2::scale_fill_brewer(palette = palette, name = stratify) +
+      .scale_palette("colour", palette, name = stratify) +
+      .scale_palette("fill", palette, name = stratify) +
       ggplot2::labs(x = col_a, y = "Density")
 
     # ── Right: QQ faceted by stratum, ceiling(sqrt(n)) columns ────────────────
@@ -312,7 +312,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     )) +
       ggplot2::stat_qq(size = 1.5, alpha = 0.6) +
       ggplot2::stat_qq_line(linewidth = 0.8) +
-      ggplot2::scale_colour_brewer(palette = palette, name = stratify) +
+      .scale_palette("colour", palette, name = stratify) +
       ggplot2::facet_wrap(as.formula(paste("~", stratify)), ncol = qq_ncol,
                           scales = "fixed", labeller = ggplot2::label_both) +
       ggplot2::coord_cartesian(xlim = ax_range + c(-ax_pad, ax_pad),
@@ -403,7 +403,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fill = .data[[col_b]]
     )) +
       ggplot2::geom_col(position = "dodge", colour = "#555555", linewidth = 0.3) +
-      ggplot2::scale_fill_brewer(palette = palette, name = col_b) +
+      .scale_palette("fill", palette, name = col_b) +
       ggplot2::labs(x = col_a, y = y_label) +
       ggplot2::facet_wrap(as.formula(paste("~", stratify)), scales = "fixed",
                           ncol     = ceiling(sqrt(length(all_strata))),
@@ -453,7 +453,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fill = .data[[col_b]]
     )) +
       ggplot2::geom_col(position = "dodge", colour = "#555555", linewidth = 0.3) +
-      ggplot2::scale_fill_brewer(palette = palette, name = col_b) +
+      .scale_palette("fill", palette, name = col_b) +
       ggplot2::labs(x = col_a, y = y_label)
 
     if (isTRUE(spec$bar_display == "proportion"))
@@ -512,8 +512,8 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
       fun = median, geom = "point",
       shape = 21, size = 3, fill = "white", colour = "black", stroke = 1.2
     ) +
-    ggplot2::scale_fill_brewer(palette = palette, guide = "none") +
-    ggplot2::scale_colour_brewer(palette = palette, guide = "none") +
+    .scale_palette("fill", palette, guide = "none") +
+    .scale_palette("colour", palette, guide = "none") +
     ggplot2::labs(x = col_a, y = col_b)
 
   if (!is.null(stratify)) {
@@ -598,7 +598,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     )) +
       ggplot2::geom_point(alpha = 0.6, size = 2) +
       ggplot2::geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
-      ggplot2::scale_colour_brewer(palette = palette, name = stratify, guide = "none") +
+      .scale_palette("colour", palette, name = stratify, guide = "none") +
       ggplot2::geom_label(
         data        = cor_df,
         ggplot2::aes(x = x_pos, y = y_pos, label = label),
@@ -664,7 +664,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     )) +
       ggplot2::geom_line(linewidth = 0.9) +
       ggplot2::geom_point(size = 2) +
-      ggplot2::scale_colour_brewer(palette = palette, name = stratify) +
+      .scale_palette("colour", palette, name = stratify) +
       ggplot2::facet_wrap(as.formula(paste("~", stratify)),
                           labeller = ggplot2::label_both)
   } else {
@@ -739,7 +739,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     )) +
       ggplot2::geom_line(linewidth = 0.9) +
       ggplot2::geom_point(size = 2) +
-      ggplot2::scale_colour_brewer(palette = palette, name = col_b) +
+      .scale_palette("colour", palette, name = col_b) +
       ggplot2::labs(x = resolution, y = y_label) +
       ggplot2::facet_wrap(as.formula(paste("~", stratify)),
                           labeller = ggplot2::label_both,
@@ -781,7 +781,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     )) +
       ggplot2::geom_line(linewidth = 0.9) +
       ggplot2::geom_point(size = 2) +
-      ggplot2::scale_colour_brewer(palette = palette, name = col_b) +
+      .scale_palette("colour", palette, name = col_b) +
       ggplot2::labs(x = resolution, y = y_label)
   }
 
@@ -872,8 +872,7 @@ render_plot <- function(spec, dataset, max_factor_levels = 20, split_panels = FA
     p <- p +
       ggplot2::geom_line(linewidth = 0.9) +
       ggplot2::geom_point(size = 2) +
-      ggplot2::scale_colour_brewer(palette = palette, aesthetics = c("colour", "fill"),
-                                   name = stratify) +
+      .scale_palette(c("colour", "fill"), palette, name = stratify) +
       ggplot2::labs(x = resolution, y = y_label)
   } else {
     df_agg <- dplyr::group_by(df, .data$._time) |>

@@ -37,6 +37,7 @@ R/
 ├── route_plot_type.R           Type combo → plot type string (Analyze tab only)
 ├── build_plot_spec.R           build_univariate_plot_spec() / build_bivariate_plot_spec() / build_trend_plot_spec()
 ├── render_plot.R               All 11 plot types; dispatches from a spec list
+├── plot_palettes.R             Colour palettes: the picker's list, n colours from any palette, the too-few-colours switch (§E7.1)
 ├── build_variable_summary.R    Summary stats table for a single variable
 ├── stats_inference.R           THE place p-values and CIs are computed — see "Statistical methods registry"
 ├── generate_report.R           Core report generation: builds sections, assembles PPT/Word/HTML
@@ -184,7 +185,6 @@ main-specific questions.
 ### Analyze
 
 ### In progress
-Phases 0–7, 6b and 5b complete; Export moved to the top-level 4 · Export page (built 2026-10-05, `PRD/BUILD_Export.md`). Phase 5b R script generator built 2026-10-06 on branch `r-code-gen-v1` (4 · Export › R Code, §A7.9; check with `Rscript tests/manual/codegen/run_check.R`). Phase definitions and acceptance criteria: `PRD/BUILD_Analysis.md`.
 - **Performance validation follow-ups** (Phase 7b built 2026-09-19): optional shrunk-coefficient output from the bootstrap calibration slope; decision curve analysis; CV / bootstrap for mixed models with several cluster variables groups by the first one only.
 
 #### High magnitude
@@ -214,5 +214,4 @@ Phases 0–7, 6b and 5b complete; Export moved to the top-level 4 · Export page
 
 ### Low magnitude
 - Splash card overflows on mid-width windows. After the 2x scale-up its min-width is 800px, but the fallback rule in `edark.css` section 9 only triggers below 460px, so roughly 460-840px of window width overflows horizontally. Raise that breakpoint to about 880px.
-- add color palettes that have more colors in them than 8 - shoot for maybe 20?
 - `shinytest2` module tests + `testthat` unit tests.

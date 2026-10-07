@@ -584,13 +584,18 @@ edark_aesthetics_groups <- function(ns) {
       selected = "minimal"
     ),
 
-    "Colour palette" = shinyWidgets::pickerInput(
-      ns("color_palette"),
-      label    = NULL,
-      choices  = c("Set2", "Set1", "Dark2", "Paired", "Accent",
-                   "Blues", "Greens", "Reds", "Purples"),
-      selected = "Set2"
-    ),
+    # Choices come from .EDARK_PALETTES (R/plot_palettes.R): grouped, each
+    # with a strip of its colours and, if qualitative, how many it has.
+    "Colour palette" = local({
+      pal <- .palette_picker_choices()
+      shinyWidgets::pickerInput(
+        ns("color_palette"),
+        label      = NULL,
+        choices    = pal$choices,
+        choicesOpt = list(content = pal$content),
+        selected   = "Set2"
+      )
+    }),
 
     "Legend" = shiny::tagList(
       shiny::checkboxInput(ns("show_legend"), "Show legend", value = TRUE),

@@ -1,4 +1,4 @@
-# RESOLVED — EDARK v0.9
+# RESOLVED — EDARK v1.0
 
 Closed TO-DOs, with the root cause and whatever was learned fixing them.
 
@@ -102,6 +102,21 @@ filter whose `type` disagrees with the column as a backstop.
 ---
 
 ## Explore
+
+### 2026-10-07 - grey bars past 8 levels; palettes with more colours
+
+Every Explore plot used `scale_*_brewer()` with a picker of Brewer palettes, most of 8 or 9
+colours. A variable with more levels (`transplant_center` in `liver_tx` has 12) got
+"n too large, allowed maximum for palette Set2 is 8" in the console and grey, colourless
+levels on screen. The TO-DO asked for palettes of up to about 20 colours.
+
+All discrete colour now goes through `.scale_palette()` in the new `R/plot_palettes.R`.
+The picker was redone from one registry: 5 short distinct palettes, 6 long ones (Paired,
+Set 3, Tableau 20, Kelly, Alphabet, Polychrome 36) and 5 shade palettes, each shown with
+its colours. A too-small distinct palette is replaced by the smallest that fits, made the
+session's palette, and announced in the Explore messages area (§E7.1).
+
+**Durable rule: §N4.9**
 
 ### 2026-09-28 - "Ignoring unknown parameters: `label.colour`" on numeric x numeric plots
 
