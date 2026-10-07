@@ -2,16 +2,25 @@
 % Please edit documentation in R/module_export.R
 \name{module_export}
 \alias{module_export}
+\alias{export_page_ui}
+\alias{export_code_ui}
 \alias{export_ui}
 \alias{export_server}
 \title{Export Module - the top-level 4 · Export page}
 \usage{
+export_page_ui(id, is_demo = FALSE)
+
+export_code_ui(id, is_demo = FALSE)
+
 export_ui(id)
 
 export_server(id, shared_state, dataset_input)
 }
 \arguments{
 \item{id}{Character. Module namespace ID.}
+
+\item{is_demo}{Logical. The input dataset is the built-in \code{liver_tx};
+the script can then load it from the package.}
 
 \item{shared_state}{A Shiny \code{reactiveValues} object.}
 
@@ -26,21 +35,32 @@ dataset, the files that reproduce it, Table 1, variable selection, the
 model, diagnostics, performance and a compiled report.
 }
 \details{
-Page contract (D6): the config pane holds only Build & Download; the centre
-is the zip itself as a folder tree, where ticking a file is selecting it
-(X12) and the file's options - data format, report format, the session's
-input dataset - sit on its row; the info pane counts what the zip will
-hold. Items whose
-output has not been created, or is stale, are listed but cannot be ticked
-(X9).
+Page contract (D6): the config pane holds the build action, what is
+selected, Select all / Clear and Download Last Build; the centre is a
+checklist of what can be exported, in plain-language sections (one per zip
+folder), where ticking an item is selecting it (X12) and an item's options
+\itemize{
+\item data format, report format, the session's input dataset - sit on its
+row; the info pane counts what the zip will hold. Items whose output has
+not been created, or is stale, are listed but cannot be ticked (X9); a
+section with nothing available yet collapses to one line saying where it
+is made.
+}
 
-The tree is plain HTML driven by \code{inst/www/edark_export.js}: folders
-are native \code{<details>}, tri-state folder boxes and the selection are
-handled in the browser and reported as \code{input$selection} and
-\code{input$open}. The tree is re-rendered only when the registry changes,
-and renders the server's copy of the selection and the open folders, so a
-re-render (e.g. Diagnostics just ran) keeps both (§N8).
+The checklist is plain HTML driven by \code{inst/www/edark_export.js}:
+tri-state section boxes and the selection are handled in the browser and
+reported as \code{input$selection}. It is re-rendered only when the
+registry changes, and renders the server's copy of the selection, so a
+re-render (e.g. Diagnostics just ran) keeps it (§N8).
 
 Build & Download runs the build in ticks with a Cancel button (the
 Performance pattern, §N6.9a), then starts the download itself.
+
+The page has two pills (\code{export_page_ui()}): \strong{Content}, the
+zip, and \strong{R Code}, the analysis script (PRD §A7.9). The script is
+generated from the current state when the R Code pill is shown - its
+outputs are suspended while hidden, so nothing is generated until then -
+and again whenever the state changes while it is open. Its options (input
+dataset, figures) are one set of inputs that both pills read: the zip's
+\code{reproduce/analysis_script.R} is the script the R Code pill shows.
 }

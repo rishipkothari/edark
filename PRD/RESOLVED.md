@@ -161,6 +161,27 @@ Two things worth knowing:
 
 ## Analyze
 
+### 2026-10-06 - R script generator (Phase 5b) built; Export's "coming soon" script
+
+Closed two TO-DOs: Phase 5b (the R Code Preview placeholder in Model › Create) and Export's
+`reproduce/analysis_script.R` "coming soon" row. Decided with the user: the script repeats
+what was run and is current (model purpose, validation and performance included; not every
+method commented out), with the seeds the run used; it lives on a new 4 · Export › R Code
+pill beside Content, generated live when shown, not cached. Spec §A7.9, §A10.6; mechanics
+§N6.14, §N8.9. Checked end to end: seven app states built with the services, exported,
+the exported script run in a fresh R process - 280+ numbers compared with the exported
+`analysis_result.rds`, all differences exactly 0. **Durable rule: §N6.14** (a helper chunk
+copies an app function - change both).
+
+### 2026-10-06 - fit statistics vanished for singular mixed models
+
+Found by the R script check: a linear mixed model with two cluster variables, one with a
+near-zero variance, showed no fit statistics table at all - only a "Fit statistics failed"
+note. `performance::icc()` (and `r2_nakagawa()`) return a bare `NA` rather than a list
+after a singular fit; `icc$ICC_adjusted` on that errors, and `.fit_statistics()` runs inside
+a `tryCatch` that drops the whole table. Fix: `is.list()` before `$` (also in the script's
+copy). **Durable rule: §N6.8.**
+
 ### 2026-09-28 - Model > Summary info pane: "Text to be written must be a length-one character vector"
 
 `output$summary_info_ui` called `compute_complete_cases(spec, adata)` - arguments swapped

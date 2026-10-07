@@ -196,12 +196,13 @@ edark <- function(dataset = liver_tx, max_factor_levels = 20, session = NULL) {
     ),
 
     # ── Tab 4: Export ────────────────────────────────────────────────────────
-    # Materials from every stage in one zip (PRD/BUILD_Export.md). Its own
-    # top-level step because it works without any Analyze work.
+    # Materials from every stage in one zip (PRD/BUILD_Export.md), and the R
+    # script that repeats the work (PRD §A7.9). Its own top-level step because
+    # it works without any Analyze work.
     bslib::nav_panel(
       value = "export",
       title = "4 \u00b7 Export",
-      export_ui("export")
+      export_page_ui("export", is_demo = isTRUE(identical(dataset, liver_tx)))
     ),
 
     bslib::nav_spacer(),

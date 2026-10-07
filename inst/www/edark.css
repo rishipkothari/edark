@@ -17,7 +17,7 @@
      7  Absorbed inline CSS blocks that used to live in R
      8  Page contract       config pane, info pane, messages slot
      9  Splash              the loading overlay shown until the app is ready
-    10  Export              the checklist on the Export page
+    10  Export              the checklist and the R Code script on the Export page
    ========================================================================== */
 
 
@@ -1148,4 +1148,21 @@ select.edark-export-opt {
 .edark-export-no-build {
   pointer-events: none;
   opacity: 0.5;
+}
+
+
+/* The R Code pill: the generated script, scrolled within the result pane.
+   A plain div wraps Shiny's <pre> (see the note on .edark-scroll-table). */
+.edark-code-block {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+.edark-code-block pre {
+  margin: 0;
+  max-height: none;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: pre;
+  overflow: visible;
 }

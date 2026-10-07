@@ -161,8 +161,8 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
   .add("data", "", "working_dataset", data_format, "data")
   .add("reproduce", "", "session", "edark.rds", "session")
   .add("reproduce", "", "prepare_steps", "txt", "prepare_steps")
-  .add("reproduce", "", "analysis_script", "R", "script",
-       status = "coming_soon", reason = "Coming soon", default = FALSE)
+  # The R script repeats whatever is current; stale steps are left out of it
+  .add("reproduce", "", "analysis_script", "R", "script")
 
   # Table 1: the tables that exist, or the ones the roles will produce
   t1 <- res$result_tables
@@ -824,6 +824,9 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
       )
       saveRDS(s, path)
     },
+    script = writeLines(generate_analysis_script(st, utils::modifyList(opts$script %||% list(),
+                                                       list(time = Sys.time())))$text,
+                        path, useBytes = TRUE),
     prepare_steps = writeLines(c(
       "Data preparation - how the working dataset was made from the input dataset.",
       "Steps run in this order: type overrides, column selection, transforms, row filters.",
@@ -879,7 +882,9 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
   data               = "The working dataset as Prepare left it - unmodified, no columns added.",
   reproduce          = paste("session.edark.rds restores this preparation and analysis setup:",
                              "edark(input_data, session = \"session.edark.rds\"), where input_data is the",
-                             "dataset first given to edark(). prepare_steps.txt lists the preparation in words."),
+                             "dataset first given to edark(). prepare_steps.txt lists the preparation in words.",
+                             "analysis_script.R repeats the preparation and every current analysis step in plain R:",
+                             "set the path to the input dataset at its top and run it."),
   table1             = "Table 1 as Word tables, and notes on how it was built.",
   variable_selection = "Univariable screen, stepwise / LASSO selection and collinearity.",
   model              = "Results table, fit statistics, forest plot, methods paragraph and model notes.",
@@ -952,7 +957,9 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
 #' @param items From \code{export_items()}.
 #' @param selection Character vector of item ids to write.
 #' @param st From \code{export_state()}.
-#' @param opts \code{list(data_format, report_format, session_include_data)}.
+#' @param opts \code{list(data_format, report_format, session_include_data,
+#'   script)}; \code{script} is the options list for
+#'   \code{generate_analysis_script()}.
 #' @param time Build time; names the zip's root folder.
 #' @return A job list.
 #' @keywords internal

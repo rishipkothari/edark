@@ -532,13 +532,15 @@ fit_analysis_model <- function(spec, data) {
   }
 
   if (model_type %in% c("linear_mixed", "logistic_mixed")) {
+    # Both return a bare NA, not a list, when a variance component is ~0
+    # (singular fit) - `$` on it would fail the whole table (\u00a7N6.8)
     r2 <- .quiet(performance::r2_nakagawa(model))
-    if (!is.null(r2)) {
+    if (is.list(r2)) {
       .add("r2_marginal", "Marginal R\u00b2", r2$R2_marginal)
       .add("r2_conditional", "Conditional R\u00b2", r2$R2_conditional)
     }
     icc <- .quiet(performance::icc(model))
-    if (!is.null(icc)) .add("icc", "ICC (adjusted)", icc$ICC_adjusted)
+    if (is.list(icc)) .add("icc", "ICC (adjusted)", icc$ICC_adjusted)
 
     vc <- as.data.frame(lme4::VarCorr(model))
     for (i in seq_len(nrow(vc))) {

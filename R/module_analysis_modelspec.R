@@ -112,17 +112,8 @@ analysis_modelspec_create_ui <- function(id) {
         edark_run_button(ns, "btn_run", "Run Model")
       )
     ),
-    result = shiny::tagList(
-      shiny::uiOutput(ns("results_ui")),
-      bslib::accordion(
-        open = FALSE, class = "mt-3",
-        bslib::accordion_panel(
-          "R Code Preview", icon = shiny::icon("code"),
-          shiny::tags$p(class = "text-muted fst-italic mb-0",
-                        "The reproducible R script for this analysis will appear here in a later phase.")
-        )
-      )
-    ),
+    # The R script for the analysis is on 4 · Export › R Code (PRD §A7.9)
+    result = shiny::uiOutput(ns("results_ui")),
     info = shiny::uiOutput(ns("model_header_ui"))
   )
 }

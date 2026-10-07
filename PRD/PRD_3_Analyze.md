@@ -383,7 +383,6 @@ analysis_result <- list(
                        # cal_intercept, cal_slope, rmse, mae, r2), metrics,
                        # messages — see run_analysis_performance()
 
-  generated_r_script  = NULL,  # character string; cached from Step 5
   methods_paragraph   = NULL,  # character string; cached from Step 8
   results_generation  = NULL,  # Step 8: generated_at, outputs (ids), include_unadjusted,
                                # unadjusted_status (variable, status, message)
@@ -652,7 +651,7 @@ Variables: exposure + outcome + all candidates, fixed order. Placeholders for un
 
 #### Step 5 — Model Creation
 
-**Module file:** `R/module_analysis_modelspec.R` (file name kept from when the step was "Model Specification") | **Service files:** `R/service_analysis_models.R`, `R/service_analysis_validation.R`, `R/service_analysis_summary.R` (`R/service_analysis_codegen.R` deferred)
+**Module file:** `R/module_analysis_modelspec.R` (file name kept from when the step was "Model Specification") | **Service files:** `R/service_analysis_models.R`, `R/service_analysis_validation.R`, `R/service_analysis_summary.R`
 
 **Layout:** two tabs (`navset_underline`) — **Summary** (first) and **Run Model**. See §A8.4.
 
@@ -660,7 +659,7 @@ Variables: exposure + outcome + all candidates, fixed order. Placeholders for un
 
 **Run Model tab — sidebar:** model dropdown (all four types listed; the one valid type — decided by outcome type and whether clusters are assigned — is selected and written to the spec automatically; the others are disabled with the reason in their label); Advanced accordion (mixed models only) with the optimizer; compact live preflight (errors and warnings only); Run Model button. Clicking the disabled button pulses the preflight box.
 
-**Run Model tab — main:** model header (model type, "Modelling:" line for binary outcomes, "Fitted on: training set, variable = level (n rows); m test rows held out for Step 7" when split, formula); results after a fit — Primary result (exposure estimate(s) with 95% CI and p, one row per level vs the reference for a factor exposure; a note for risk-factor studies), Coefficients table (all terms except the intercept, with footnote), Fit statistics, Fitting notes (preflight warnings at fit time + fit warnings/notes); R Code Preview accordion (placeholder until the code generator is built).
+**Run Model tab — main:** model header (model type, "Modelling:" line for binary outcomes, "Fitted on: training set, variable = level (n rows); m test rows held out for Step 7" when split, formula); results after a fit — Primary result (exposure estimate(s) with 95% CI and p, one row per level vs the reference for a factor exposure; a note for risk-factor studies), Coefficients table (all terms except the intercept, with footnote), Fit statistics, Fitting notes (preflight warnings at fit time + fit warnings/notes). The R script for the analysis is on 4 · Export › R Code (§A7.9).
 
 **No warning modal:** Run Model proceeds whenever the preflight has no errors; warnings are already on screen and are replayed in Fitting notes.
 
@@ -1034,39 +1033,49 @@ Output: selected formula, selection path tibble, suggested variable list (never 
 
 **Exposure held:** when an exposure is assigned, its columns get `penalty.factor = 0` — never shrunk out, never reported as selected.
 
-**Seed:** the 10 cross-validation folds are random. They are drawn with `lasso_seed(spec)` (`variable_selection_specification$lasso_seed`, default 20260919) inside `.with_seed()`, which restores the session's random stream, so the same seed and data give the same lambda and selection. The seed is set in the LASSO sidebar (Random Seed, filled with the stored value), written to the spec on Run, returned as `seed` in the result, and shown in the Step 5 Summary and the Step 4 LASSO column tooltip. The Phase 5b script reproduces the run with `set.seed(<lasso_seed>)` immediately before `cv.glmnet()`.
+**Seed:** the 10 cross-validation folds are random. They are drawn with `lasso_seed(spec)` (`variable_selection_specification$lasso_seed`, default 20260919) inside `.with_seed()`, which restores the session's random stream, so the same seed and data give the same lambda and selection. The seed is set in the LASSO sidebar (Random Seed, filled with the stored value), written to the spec on Run, returned as `seed` in the result, and shown in the Step 5 Summary and the Step 4 LASSO column tooltip. The R script (§A7.9) reproduces the run with `set.seed(<lasso_seed>)` immediately before `cv.glmnet()`.
 
 Output: coefficient path plot data, cross-validation plot data, suggested variable list.
 
 ### A7.9 R Code Generation
 
-**Service file:** `R/service_analysis_codegen.R`
+**Service file:** `R/service_analysis_codegen.R` (`generate_analysis_script(st, opts)`); helper copies in `inst/codegen/helpers.R`. **Page:** 4 · Export › R Code (§A10.6). Built 2026-10-06.
 
-Dynamically assembled via `paste0` / `glue` from `analysis_spec`. Generated at model specification time (Step 5), cached in `analysis_result$generated_r_script`. Displayed in Step 5 R Code Preview accordion. Retrieved at export time — not regenerated.
+One self-contained R script that repeats the work done in EDARK. It is generated from the current state (the export snapshot, `export_state()`) whenever it is shown - on entering the R Code pill, again on any change while it is open, on Download Script, and when the zip writes `reproduce/analysis_script.R`. It is never cached in `analysis_result`.
+
+**Scope - what was run, and is current.** A step that was not run is left out; a step whose output is stale is left out with a message (the Export rule, X9; status from `analysis_output_status()`). In order:
+1. **Input data** - `readRDS(<path>)` (default `input_data.rds`), or `edark::liver_tx` when the app was launched on the built-in dataset; skipped when `input_data` already exists, and checked against the input's row and column count.
+2. **Column types** - the conversions `cast_column_types()` made at launch, column by column.
+3. **Prepare** - type changes, columns, transforms, row filters, in the §P7.2 order, from `last_applied_specs`. Values that depend on the data (cut-points inside the range, whether a column has spread) are resolved at generation, against the same intermediate dataset the app saw. Ends with a row / column count check.
+4. **Analysis dataset** - `.edark_row_id`, roles, reference levels, model purpose and, for a held-out test set, the training / test rows.
+5. **Table 1** - only the tables generated, each with the gtsummary steps it actually ran (read from the stored table's `call_list`).
+6. **Variable selection** - the univariable screen, stepwise and LASSO only if run, with the settings and seed of the run; collinearity if computed. A run that ended in an error is written commented out.
+7. **Model** - the fitted model from `specification_snapshot`: model rows, formula, engine and optimizer, coefficient table, fit statistics.
+8. **Diagnostics** - only the checks run.
+9. **Performance** - the measures run, on the sets of rows of the validation method actually used (`performance$validation`: apparent, test set, cross-validation or bootstrap, with its folds / repeats / resamples and seed).
+10. **Results** - unadjusted models, results table, forest plot if generated; the methods paragraph as a comment.
+
+**Same numbers as the app.** Every random step sets the seed the app used, immediately before it (`set.seed(<lasso_seed>)` before `cv.glmnet()`, `set.seed(<validation seed>)` before the folds / resamples are drawn, all up front as in the app). Where an EDARK function decides a number - the coefficient table and its CIs, model rows, the Table 1 categorical test, the performance measures, folds and resamples - the script carries a copy of it (`inst/codegen/helpers.R`, one chunk per function, only the chunks the script uses). If the script and the app disagree, the app has a bug or a copy has drifted (§N6.14); `tests/manual/codegen/run_check.R` compares the two on seven scenarios.
+
+**Options** (one set, read by the R Code pill and the zip): input dataset (built-in / file path), code for figures on or off.
 
 **Script setup:**
 ```r
-options(
-  pkgType = "binary",
-  repos = c(
-    RSPM = "https://packagemanager.posit.co/cran/latest",
-    CRAN = "https://cloud.r-project.org"
-  )
-)
+if (.Platform$OS.type == "windows" || Sys.info()[["sysname"]] == "Darwin") {
+  options(pkgType = "binary")
+}
+options(repos = c(
+  RSPM = "https://packagemanager.posit.co/cran/latest",
+  CRAN = "https://cloud.r-project.org"
+))
 if (!requireNamespace("pacman", quietly = TRUE)) {
   install.packages("pacman")
 }
-pacman::p_load(gtsummary, ggplot2, broom, performance, magrittr)
+pacman::p_load(dplyr, ...)   # only the packages the script uses
 ```
+`pkgType = "binary"` is set only where CRAN has binaries; on Linux it would stop `install.packages()`.
 
-**Scope — broader than what was run:**
-- **Table 1:** only stratifications actually generated
-- **Variable selection:** ALL three methods. Run methods use actual parameters. Unrun methods fully commented out with default parameters.
-- **Model fitting:** hardcoded formula with the Step 4 covariates. No dependency on selection output.
-- **Diagnostics:** ALL diagnostics available for model type, regardless of what was checked.
-- **Results:** all extraction code.
-
-Uses `%>%` throughout. If generated code and app produce different results, the app has a bug.
+Plain ASCII (non-ASCII text becomes `\u` escapes), `%>%` throughout, lines wrapped at 78 characters.
 
 ### A7.10 Summary of Dependencies by Model Type
 
@@ -1151,7 +1160,6 @@ Run Model tab — layout_sidebar(position = "left"):
   Main:    Model header — type · Modelling: ead = TRUE (vs FALSE) ·
            Fitted on: training set [split] · Formula
            Primary result | Coefficients | Fit statistics + Fitting notes
-           ▸ R Code Preview                [placeholder until codegen]
 ```
 
 ### A8.5 Step 3 Tier 1 Validation Display
@@ -1233,7 +1241,7 @@ edark_export_YYYY-MM-DD_HHMMSS/
 ├── README.txt                    always: contents, dataset, model, renamed columns, files left out
 ├── analysis_report.docx | .html  compiled report (optional)
 ├── data/working_dataset.{rds,csv,sav,dta,xlsx}
-├── reproduce/  session.edark.rds, prepare_steps.txt, analysis_script.R (coming soon)
+├── reproduce/  session.edark.rds, prepare_steps.txt, analysis_script.R (§A7.9)
 ├── table1/     table1_overall|by_exposure|by_outcome.docx, table1_notes.docx
 ├── variable_selection/  tables/ figures/ variable_selection_notes.docx
 ├── model/      tables/ (results_table, fit_statistics), figures/forest_plot.png,
@@ -1252,9 +1260,20 @@ The working dataset as Prepare left it - unmodified, no split column, no `.edark
 
 Word (bundled template, title page, TOC) or HTML (one self-contained file). Order: data preparation → analysis summary + methods → Table 1 → results → performance (before results for a prediction model) → Appendix A variable selection → Appendix B diagnostics. A section appears only when its source is available. PDF is deferred.
 
+### A10.6 R Code
+
+**Built 2026-10-06.** 4 · Export has two pills: **Content** (the zip, A10.1-A10.4) and **R Code** (the analysis script, §A7.9). Same page contract as every page:
+
+- **Config:** Input dataset (Built-in liver_tx / A file, shown only when the app was launched on `liver_tx`; the file path otherwise), Include › Code for figures, then **Download Script** at the bottom.
+- **Result:** the script, scrolling in the centre, with **Copy** in a toolbar above it.
+- **Info:** what the script repeats (each step: Included / Not run / Out of date), lines, the file it reads, packages, random seeds.
+- **Messages:** steps left out because they are out of date; Prepare's unapplied changes.
+
+The script is generated from the current state when the pill is shown, and again on any change while it is open. The options are one set of inputs: the Content pill's `reproduce/analysis_script.R` (ticked by default, always available) is the script the R Code pill shows.
+
 ### A10.5 Not Built
 
-Presets, PDF, the R script (Phase 5b), an analysis package with a manifest (dropped - the session file does that job), import of an export.
+Presets, PDF, an analysis package with a manifest (dropped - the session file does that job), import of an export.
 
 
 ## A11 — Versioning and Deferral Log
@@ -1317,7 +1336,7 @@ R/
 ├── service_analysis_validation.R         ← preflight validator
 ├── service_analysis_summary.R            ← Step 5 Summary builder (audit of every step)
 ├── service_analysis_variable_selection.R ← univariable, stepwise, LASSO
-├── service_analysis_codegen.R            ← R code generator
+├── service_analysis_codegen.R            ← R script generator (§A7.9; helpers in inst/codegen/helpers.R)
 ├── service_export.R                      ← export registry, writers, build job
 ├── service_export_report.R               ← compiled export report
 ├── service_analysis_pipeline.R           ← reset_analysis_pipeline()
@@ -1334,7 +1353,7 @@ R/
 | `module_analysis_table1.R` | `service_analysis_tables.R` |
 | `module_analysis_varinvestigation.R` | `service_analysis_variable_selection.R`, `service_analysis_validation.R` (Tier 1) |
 | `module_analysis_covariate_confirm.R` | (reads from `analysis_result$variable_investigation`) |
-| `module_analysis_modelspec.R` | `service_analysis_models.R`, `service_analysis_validation.R` (Tier 2), `service_analysis_summary.R`, `service_analysis_codegen.R` (deferred) |
+| `module_analysis_modelspec.R` | `service_analysis_models.R`, `service_analysis_validation.R` (Tier 2), `service_analysis_summary.R` |
 | `module_analysis_diagnostics.R` | `service_analysis_diagnostics.R`, `service_analysis_plots.R` |
 | `module_analysis_performance.R` | `service_analysis_performance.R`, `service_analysis_plots.R` |
 | `module_analysis_results.R` | `service_analysis_tables.R`, `service_analysis_plots.R` |

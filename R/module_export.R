@@ -23,13 +23,76 @@
 #' Build & Download runs the build in ticks with a Cancel button (the
 #' Performance pattern, §N6.9a), then starts the download itself.
 #'
+#' The page has two pills (\code{export_page_ui()}): \strong{Content}, the
+#' zip, and \strong{R Code}, the analysis script (PRD §A7.9). The script is
+#' generated from the current state when the R Code pill is shown - its
+#' outputs are suspended while hidden, so nothing is generated until then -
+#' and again whenever the state changes while it is open. Its options (input
+#' dataset, figures) are one set of inputs that both pills read: the zip's
+#' \code{reproduce/analysis_script.R} is the script the R Code pill shows.
+#'
 #' @param id Character. Module namespace ID.
 #' @param shared_state A Shiny \code{reactiveValues} object.
 #' @param dataset_input The data frame passed to \code{edark()}, before casting
 #'   - what a session file describes and may carry.
+#' @param is_demo Logical. The input dataset is the built-in \code{liver_tx};
+#'   the script can then load it from the package.
 #'
 #' @name module_export
 NULL
+
+
+#' @rdname module_export
+#' @export
+export_page_ui <- function(id, is_demo = FALSE) {
+  ns <- shiny::NS(id)
+  bslib::navset_pill(
+    id = ns("tabs"),
+    bslib::nav_panel("Content", value = "content", export_ui(id)),
+    bslib::nav_panel("R Code", value = "code", export_code_ui(id, is_demo))
+  )
+}
+
+
+#' @rdname module_export
+#' @export
+export_code_ui <- function(id, is_demo = FALSE) {
+  ns <- shiny::NS(id)
+  edark_page(
+    config = shiny::tagList(
+      edark_section_label("Input dataset", first = TRUE),
+      if (isTRUE(is_demo)) {
+        shiny::radioButtons(ns("code_source"), label = NULL, width = "100%",
+                            choices = c("Built-in liver_tx" = "liver_tx", "A file" = "file"),
+                            selected = "liver_tx")
+      },
+      shiny::conditionalPanel(
+        condition = if (isTRUE(is_demo)) "input.code_source == 'file'" else "true",
+        ns = ns,
+        shiny::textInput(ns("code_path"), "File (.rds)", value = "input_data.rds", width = "100%"),
+        shiny::tags$p(class = "small text-muted",
+                      "The dataset you gave to edark(), saved with saveRDS(). The script reads it",
+                      "from this path, or uses input_data if it is already loaded.")
+      ),
+      edark_section_label("Include"),
+      shiny::checkboxInput(ns("code_figures"), "Code for figures", value = TRUE, width = "100%"),
+      shiny::tags$hr(class = "my-3"),
+      edark_button(ns, "code_download", "Download Script", icon = "download", type = "download"),
+      shiny::tags$p(class = "small text-muted mt-3 mb-0",
+                    "The same script goes into the zip on the Content tab, as",
+                    shiny::tags$code("reproduce/analysis_script.R"))
+    ),
+    messages = edark_messages_ui(ns, "code_messages"),
+    result = shiny::tagList(
+      edark_action_toolbar(
+        edark_button(ns, "code_copy", "Copy", icon = "copy", size = "toolbar",
+                     `data-copy-target` = ns("code"))
+      ),
+      shiny::div(class = "edark-code-block", shiny::verbatimTextOutput(ns("code")))
+    ),
+    info = shiny::uiOutput(ns("code_info"))
+  )
+}
 
 
 # Seconds of file writing per reactive tick: long enough to keep overhead low,
@@ -116,13 +179,65 @@ export_server <- function(id, shared_state, dataset_input) {
       export_items(st(), input$data_format %||% "rds", input$report_format %||% "docx")
     })
 
+    # ── R Code (PRD §A7.9) ───────────────────────────────────────────────────
+    # One set of script options, read by the R Code pill and by the zip.
+    is_demo <- isTRUE(tryCatch(identical(dataset_input, liver_tx), error = function(e) FALSE))
+    code_opts <- shiny::reactive({
+      path <- trimws(input$code_path %||% "")
+      list(
+        data_source = if (is_demo && !identical(input$code_source, "file")) "liver_tx" else "file",
+        data_path   = if (nzchar(path)) path else "input_data.rds",
+        figures     = !isFALSE(input$code_figures)
+      )
+    })
+    # Generated only while something on the R Code pill is shown (its outputs
+    # are suspended when hidden) or on download.
+    code_script <- shiny::reactive(generate_analysis_script(st(), code_opts()))
+    # What the script covers - cheap, so the messages slot (never suspended)
+    # can use it without generating the script.
+    code_plan <- shiny::reactive(.cg_plan(st()))
+
+    output$code <- shiny::renderText(code_script()$text)
+
+    output$code_download <- shiny::downloadHandler(
+      filename = function() paste0("edark_analysis_", format(Sys.time(), "%Y-%m-%d_%H%M%S"), ".R"),
+      content  = function(file) writeLines(code_script()$text, file, useBytes = TRUE),
+      contentType = "text/plain"
+    )
+
+    edark_messages_server(output, shiny::reactive({
+      m <- code_plan()$messages
+      lapply(seq_len(nrow(m)), function(i) edark_message(m$level[i], m$message[i]))
+    }), id = "code_messages")
+
+    output$code_info <- shiny::renderUI({
+      g  <- code_script()
+      s  <- g$sections
+      op <- code_opts()
+      .status <- function(x) switch(x, included = "Included", stale = "Out of date", "Not run")
+      shiny::tagList(
+        edark_section_label("The script repeats", first = TRUE),
+        lapply(seq_len(nrow(s)), function(i) {
+          edark_info_row(s$title[i], if (s$status[i] == "included") .status(s$status[i])
+                                     else shiny::span(class = "text-muted fw-normal", .status(s$status[i])))
+        }),
+        edark_section_label("Script"),
+        edark_info_row("Lines", format(length(g$lines), big.mark = ",")),
+        edark_info_row("Reads", if (identical(op$data_source, "liver_tx")) "edark::liver_tx" else op$data_path),
+        edark_info_row("Packages", length(g$packages)),
+        shiny::tags$p(class = "small text-muted mt-1 mb-0", paste(g$packages, collapse = ", ")),
+        if (nrow(g$seeds) > 0L) shiny::tagList(
+          edark_section_label("Random seeds"),
+          lapply(seq_len(nrow(g$seeds)), function(i) edark_info_row(g$seeds$what[i], g$seeds$seed[i]))
+        )
+      )
+    })
+
     # ── Selection ────────────────────────────────────────────────────────────
     # The server's copy of the ticked ids. An id is ticked by default the first
     # time it becomes available (if its default is TRUE); after that the user's
     # choice stands. Ids that are not available keep their tick here, so an
     # output that goes stale and is re-run comes back ticked.
-    sel  <- shiny::reactiveVal(character(0))
-    seen <- shiny::reactiveVal(character(0))
     sel  <- shiny::reactiveVal(character(0))
     seen <- shiny::reactiveVal(character(0))
 
@@ -212,7 +327,8 @@ export_server <- function(id, shared_state, dataset_input) {
       if (nrow(todo) == 0L) return()   # the button is disabled
       opts <- list(data_format          = input$data_format %||% "rds",
                    report_format        = input$report_format %||% "docx",
-                   session_include_data = isTRUE(input$session_include_data))
+                   session_include_data = isTRUE(input$session_include_data),
+                   script               = code_opts())
       shiny::showModal(.analysis_progress_modal("Building Export\u2026", cancel_id = ns("cancel_build")))
       job <- tryCatch(export_job(shiny::isolate(items()), todo$id, shiny::isolate(st()), opts),
                       error = function(e) e)

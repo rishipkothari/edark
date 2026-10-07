@@ -13,7 +13,9 @@ export_job(items, selection, st, opts, time = Sys.time())
 
 \item{st}{From \code{export_state()}.}
 
-\item{opts}{\code{list(data_format, report_format, session_include_data)}.}
+\item{opts}{\code{list(data_format, report_format, session_include_data,
+  script)}; \code{script} is the options list for
+\code{generate_analysis_script()}.}
 
 \item{time}{Build time; names the zip's root folder.}
 }

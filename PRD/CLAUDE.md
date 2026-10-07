@@ -16,7 +16,7 @@ This file is the **index**: where to find things, the rules that must never be b
 | [PRD_3_Analyze.md](PRD_3_Analyze.md) | §A | The analysis workflow: roles and model purpose, Table 1, variable investigation, covariates, model creation, preflight, diagnostics, performance, results, export |
 | [NOTE_implementation.md](NOTE_implementation.md) | §N | Pitfalls, the **statistical methods registry** (§N2), and as-built mechanics per stage |
 | [NOTE_UI-principles.md](NOTE_UI-principles.md) | — | Layout, action placement, visual hierarchy. Read before any UI work so it isn't reinvented each time |
-| [BUILD_Analysis.md](BUILD_Analysis.md) | — | Analyze build phases and acceptance criteria (incl. Phase 5b code generator, Phase S sessions; Phase 8 export superseded by BUILD_Export.md) |
+| [BUILD_Analysis.md](BUILD_Analysis.md) | — | Analyze build phases and acceptance criteria (incl. Phase 5b R script generator, Phase S sessions; Phase 8 export superseded by BUILD_Export.md) |
 | [BUILD_Export.md](BUILD_Export.md) | — | The 4 · Export page: decisions, zip layout, item registry, notes documents, tree UI, compiled report, stage status |
 | [BUILD_UI-redesign.md](BUILD_UI-redesign.md) | - | **The single UI plan** (Claude + Codex assessments merged 2026-09-22; revised 2026-09-23 from user feedback, §1.3): settled decisions, assessment, and Stages 0-6 - honest locking first, component library, CSS theme, config / result / info page contract with a messages area, flatter navigation. `bslib` + R + plain CSS only. Stage status table at the top; work one stage per session. **§1.3 holds the UI principles taken from real use (button scale, placement by scope, shared settings, no redundant surfaces) - read it before any UI work, alongside `NOTE_UI-principles.md`** |
 | [RESOLVED.md](RESOLVED.md) | — | Closed to-dos with root cause and lessons. Check here when a bug smells familiar, before re-deriving a fix |
@@ -104,7 +104,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `module_analysis_diagnostics.R` | §A5.3, §N6.9 |
 | `module_analysis_performance.R` | §A5.3, §N6.9a |
 | `module_analysis_results.R` | §A5.3, §N6.10 |
-| `module_export.R` | §A10, §N8 |
+| `module_export.R` | §A10, §A10.6, §N8, §N8.9 |
 | `analysis_utils.R` | §N6.2 |
 | `service_analysis_pipeline.R` | §A8.6, §N6.13 |
 | `service_analysis_validation.R` | §A8, §N6.12 |
@@ -114,10 +114,11 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `service_analysis_performance.R` | §N6.9a |
 | `service_analysis_tables.R` | §N6.10 |
 | `service_analysis_variable_selection.R` | §A9, §N6.5 |
-| `service_analysis_codegen.R` | §A7.9 |
+| `service_analysis_codegen.R` | §A7.9, §N6.14 |
+| `inst/codegen/helpers.R` | §A7.9, §N6.14 |
 | `service_export.R` | §A10, §N8 |
 | `service_export_report.R` | §A10.4, §N8.6 |
-| `inst/www/edark_export.js` | §N8.3 |
+| `inst/www/edark_export.js` | §N8.3, §N8.9 |
 | `service_session.R` | §M8, §N3.5 |
 | `module_session.R` | §M8.7-M8.8, §N3.5 |
 | `data/liver_tx.rda` | §N7 |
@@ -127,10 +128,10 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 ## Current State
 
 - **Prepare, Explore (Plot + Report):** built.
-- **Analyze:** Phases 0–7 and 6b complete — Setup (incl. model purpose + train/test split), Table 1, Variable Investigation, Covariate Confirmation, Model Creation, Diagnostics, Performance, Results.
+- **Analyze:** Phases 0–7, 6b and 5b complete — Setup (incl. model purpose + train/test split), Table 1, Variable Investigation, Covariate Confirmation, Model Creation, Diagnostics, Performance, Results.
 - **Built 2026-09-19:** Phase 7b performance validation — Step 1 validation method (bootstrap / cross-validation / held-out test set, mutually exclusive), settings and Cancel-able runs in Model › Performance (§A1.4a, §A5.3).
 - **Built 2026-10-05 (branch `export_v1`, not yet run in R):** the top-level **4 · Export** page - one zip of the working dataset, session file, Analyze tables / figures / notes and a compiled Word / HTML report; only current outputs exportable ([BUILD_Export.md](BUILD_Export.md), §A10, §N8). Analyze is now five steps.
-- **Stubs and deferrals:** Phase 5b's R code generator (`service_analysis_codegen.R`) is deferred — the R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`).
+- **Built 2026-10-06 (branch `r-code-gen-v1`):** Phase 5b R script generator - 4 · Export is now two pills, Content and R Code; the script repeats the preparation and every current Analyze step with the app's settings and seeds, generated live (§A7.9, §A10.6, §N6.14, §N8.9). Verified: every number matches the app on seven scenarios (`tests/manual/codegen/run_check.R`), page driven with chromote (`ui_check.R`).
 - **Built 2026-09-23:** UI consistency Stage 1 - honest locking. `R/ui_helpers.R`
   (`EDARK_LOCK_REASON`, `edark_run_button()`, `edark_run_gate()`) and
   `inst/www/edark.css` now exist; every gated Analyze nav item explains itself in a

@@ -178,8 +178,8 @@ no modal) and **Replace** (swaps the selection, modal); cluster variables are lo
 Built with agreed deviations (the PRD is updated to match): **two tabs** (Summary + Run
 Model) instead of stacked accordions; the **model type is automatic** (one valid type);
 preflight is **live** (no Run Preflight button, no verbose checkbox); **no warning modal**;
-optimizer change → **stale** results instead of a reset; the **R code generator is
-deferred** to Phase 5b.
+optimizer change → **stale** results instead of a reset; the **R code generator was
+deferred** to Phase 5b (built 2026-10-06).
 
 ### What was built
 - `module_analysis_modelspec.R` per §5.3 Step 5, §6.7, §8.4
@@ -205,24 +205,32 @@ deferred** to Phase 5b.
 
 ---
 
-## Phase 5b — R Code Generator — ⏳ DEFERRED
+## Phase 5b — R Code Generator — ✅ COMPLETE (2026-10-06, branch `r-code-gen-v1`)
 
-### What to build
-- `service_analysis_codegen.R` — R script generator per §7.9, cached in `analysis_result$generated_r_script`
-- Replace the Step 5 R Code Preview placeholder with the live script
+Built with decisions taken 2026-10-06 that change the original plan:
+- **The script covers what was run, and is current** - not "all three selection methods,
+  unrun ones commented out" or "every diagnostic for the model type". Model purpose,
+  validation and performance are included. Stale steps are left out with a message.
+- **Seeds are the ones the run used** (LASSO, cross-validation, bootstrap).
+- **It lives on 4 · Export › R Code**, a pill beside Content, and is **generated live** when
+  shown - not cached in `analysis_result$generated_r_script`. The Model › Create "R Code
+  Preview" placeholder is gone.
 
-### Inputs available
-- `analysis_spec` (roles, covariates, reference levels, clusters, model_design)
-- `specification_metadata$prepare_snapshot` — Prepare settings (type overrides, included columns, transforms, row filters) so the script can rebuild the analysis dataset from the original data
+### What was built
+- `service_analysis_codegen.R` - `generate_analysis_script(st, opts)`, pure, from the export state snapshot
+- `inst/codegen/helpers.R` - copies of the EDARK functions that decide numbers, one chunk each; the script carries only the chunks it uses
+- `module_export.R` - `export_page_ui()` (Content / R Code pills), `export_code_ui()`, the R Code server part; the zip's `reproduce/analysis_script.R` is now available
+- `tests/testthat/test-service_analysis_codegen.R` (fast) and `tests/manual/codegen/` - `run_check.R` (script vs app, end to end), `ui_check.R` (the page in headless Chrome)
 
-### Acceptance criteria
-- Script uses `pacman::p_load()`, `%>%`, RSPM repos
-- Rebuilds the model data exactly as `fit_analysis_model()` does (complete cases, ordered → unordered factors, reference levels, clusters as factors)
-- Fitted estimates match the app exactly for all four model types
-- Unrun variable selection methods are present but commented out
+### Acceptance criteria (as built)
+- Script uses `pacman::p_load()` (only the packages it needs), `%>%`, RSPM repos; plain ASCII; it parses
+- Rebuilds the working dataset from the input dataset (launch casts + Prepare) - identical to the app's and to the exported `data/working_dataset.rds`
+- Rebuilds the model data exactly as `fit_analysis_model()` does
+- **Every number matches the app** - Table 1, univariable screen, stepwise / LASSO selection and lambda, collinearity matrices, coefficients and fit statistics, diagnostics, performance (apparent, test set, CV mean and SD, bootstrap optimism), unadjusted estimates - for all four model types and all four validation methods: 7 scenarios, 280+ comparisons, all differences 0 (`run_check.R`, against the exported `model/analysis_result.rds`)
+- The R Code pill shows the script on entry, regenerates on an option change, Copy and Download Script work (`ui_check.R`)
 
 ### PRD references
-- §7.9
+- §A7.9, §A10.6, §N6.14
 
 ---
 

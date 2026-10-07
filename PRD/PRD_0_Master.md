@@ -232,7 +232,7 @@ EDARK produces four kinds of output. They are deliberately separate.
 | Output | What it is | Where | Status |
 |---|---|---|---|
 | **Explore reports** | Full or custom PPTX / DOCX / HTML report of plots and summary tables | Explore › Report (§E10–E14) | Built |
-| **Export materials** | One zip: working dataset (RDS / CSV / SPSS / Stata / Excel), session file + Prepare steps, Analyze tables (Word), figures (PNG) and per-folder notes, compiled report (Word / HTML); R script coming soon | 4 · Export (§A10, `PRD/BUILD_Export.md`) | Built 2026-10-05, untested |
+| **Export materials** | One zip: working dataset (RDS / CSV / SPSS / Stata / Excel), session file + Prepare steps, Analyze tables (Word), figures (PNG) and per-folder notes, compiled report (Word / HTML), R script (R Code pill, §A7.9) | 4 · Export (§A10, `PRD/BUILD_Export.md`) | Built 2026-10-05, untested |
 | **Dataset export** | The working dataset alone | Now part of 4 · Export (data/ folder) | Folded into Export |
 | **Session file** | Saved decisions for resuming work, optionally with data | Session menu (§M8) | Built (Phase S; autosave deferred) |
 
@@ -379,7 +379,7 @@ Not built. The plan, to be revisited once the cost of building and writing a ses
 | Utilities | `digest` |
 | Suggests (dev) | `testthat`, `shinytest2` |
 
-Generated R scripts (planned, §A7.9) load their own packages with `pacman::p_load()`; `pacman` is not an app dependency.
+Generated R scripts (§A7.9, 4 · Export › R Code) load their own packages with `pacman::p_load()`; `pacman` is not an app dependency.
 
 ### M9.2 Code Organisation
 - `R/edark.R` — entry point, UI, `shared_state`, server wiring, cross-tab navigation.

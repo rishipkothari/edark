@@ -305,6 +305,7 @@ The modules are unchanged siblings; `module_analysis_modelspec.R` exposes two UI
 - Always fit linear mixed models with `lmerTest::lmer` (Satterthwaite p-values exist only because its S3 method is registered), never `lme4::lmer`.
 - Warnings / messages captured with `withCallingHandlers` + `tryCatch`, never thrown. Convergence, separation and "Rescale variables" warnings get plain-language hints (`.explain_fit_warning()`); lme4's "boundary (singular) fit" message is replaced by our own singular-fit warning.
 - `analysis_outcome_event(spec, data)` → the event level for a binary outcome (the non-reference level).
+- **`performance::icc()` and `r2_nakagawa()` return a bare `NA`, not a list, after a singular fit.** Test `is.list()` before `$`: `icc$ICC_adjusted` on that `NA` errors, and inside `.fit_statistics()` that error used to drop the whole fit-statistics table without a word (RESOLVED 2026-10-06). The same guard is in the script's copy (§N6.14).
 
 | UI label | `model_type` | Outcome | Clusters |
 |---|---|---|---|
@@ -360,7 +361,20 @@ The modules are unchanged siblings; `module_analysis_modelspec.R` exposes two UI
 |---|---|
 | `1` | Entire `analysis_result`; resets `variable_selection_specification` and `model_design`; `final_model_covariates` → `NULL` |
 | `3` | Everything `4` clears, plus `variable_investigation`, `result_tables$univariable_screen`, `result_plots$collinearity_plots` (the training rows changed). Table 1 and the spec are kept |
-| `4` or `5` | Fitted and unadjusted models, run status, result tables / plots (incl. `main_results`, `fit_statistics`, forest plot, `diagnostic_plots`, `performance_plots`, `performance_summary`), inference summary, `diagnostics`, `performance`, generated script, methods paragraph, `results_generation`. Spec untouched |
+| `4` or `5` | Fitted and unadjusted models, run status, result tables / plots (incl. `main_results`, `fit_statistics`, forest plot, `diagnostic_plots`, `performance_plots`, `performance_summary`), inference summary, `diagnostics`, `performance`, methods paragraph, `results_generation`. Spec untouched |
+
+### N6.14 R script generator (`service_analysis_codegen.R`, `inst/codegen/helpers.R`)
+Spec: §A7.9. Built 2026-10-06.
+
+- **Pure, from the export snapshot.** `generate_analysis_script(st, opts)` takes `export_state()`'s list, so the R Code pill, Download Script and the zip all write the same text, and it runs without Shiny. Nothing is cached in `analysis_result`.
+- **What goes in is decided once**, in `.cg_plan()`, from `analysis_output_status()` - the same statuses the Export checklist uses. Add a section: a row in `.CG_SECTIONS` and `.cg_plan()`, an emitter `.cg_<step>()`, a line in `generate_analysis_script()`, its packages in `.cg_packages()` and helpers in `.cg_helpers_needed()`.
+- **Which spec feeds which section.** Prepare: `last_applied_specs`. Analysis dataset, Table 1, variable selection: the current `analysis_spec` (the pipeline reset clears these outputs when the spec they ran on changes). Model and everything after: `analysis_result$specification_snapshot`. Settings a run stored are preferred over the spec: `vi$stepwise$direction` / `criterion`, `vi$lasso$seed` / `lambda_type`, `performance$validation` (whose `cv_folds` is the k actually used, after capping).
+- **Data-dependent values are resolved at generation**, against the intermediate dataset the app saw: cut-points inside the column's range (and `.make_range_labels()`), whether a column has spread to standardise, whether a filter still matches its column's type. The generator replays the pipeline step by step with the app's own `.apply_*()` functions to get there.
+- **Helpers are copies, not calls.** The script cannot depend on edark, so where an EDARK function decides a number its body is copied into `inst/codegen/helpers.R` as a `# @chunk <name>` block (read by `.cg_helper_chunks()`; only the chunks a script needs are copied in, in file order). **Change one of these functions and change its chunk**, or the script stops matching: `edark_coef_table`, `apply_reference_levels`, `.prepare_model_rows`, `.fit_statistics`, `.edark_categorical_test`, `.perf_measures`, `.perf_scores`, `.perf_keys`, `.perf_refit` / `.perf_predictable` / `.perf_align`, `.perf_cv_plan`, `.perf_boot_plan`, `.perf_smooth`, `.calibration_bins`, `.with_seed`. Resampling helpers read globals the script defines (`outcome`, `predictors`, `logistic`, `resample_clusters`, `refit_model`, `model_formula`) - the editor's lint warnings on that file are expected.
+- **Seeds.** A run's random draws must happen in the same order: the script sets the seed immediately before the step, and draws every fold / resample up front, as the app does. Do not draw anything random between `set.seed()` and the plan.
+- **Table 1** emits only the gtsummary steps the stored table ran: `names(tbl$call_list)` (`add_p`, `add_difference`, `modify_spanning_header` - the app wraps the last two in `tryCatch`).
+- **Literals.** `.cg_esc()` writes plain ASCII (`\u` escapes); `.cg_name()` backticks non-syntactic names; `.cg_terms()` wraps with `+` at the **end** of a line - a continuation line that starts with `+` ends the formula above it and silently drops the terms below. Templates are raw strings delimited `r"---( ... )---"`: plain `r"( ... )"` ends at the first `)"`, which the code inside (`"(Intercept)"`) contains.
+- **Checking it.** `tests/manual/codegen/run_check.R` builds seven app states with the services (`scenarios.R`), exports each, runs the exported `analysis_script.R` in a fresh R process (`callr`) and compares every number with the exported `analysis_result.rds` - all four model types, all four validation methods, launch casts, every transform kind. Differences were all exactly 0 on 2026-10-06. Run it after touching a helper chunk or a function it copies. `ui_check.R` drives the page with chromote; `tests/testthat/test-service_analysis_codegen.R` holds the fast checks.
 
 ---
 
@@ -421,3 +435,10 @@ Step 3 now stores `cor_matrix` and `cramers_v_matrix` in `result_plots$collinear
 - **htmltools drops `tags$head` from `as.character()`** (it hoists head content for Shiny pages), so a page built as `tags$html(tags$head(...), tags$body(...))` loses its CSS and charset. `export_report_html()` writes the head as text.
 - **A download button is an `<a>`.** `shinyjs::disabled()` neither greys it nor stops the click, and Shiny strips Bootstrap's `.disabled` from a download link as soon as its handler is ready. Download Last Build Again uses its own class, `.edark-export-no-build` (`pointer-events: none`), which the download trigger removes.
 - An unzipped export under a deep folder can pass Windows' 260-character path limit (`variable_selection/tables/collinearity_flagged_pairs.docx` is the longest path inside the zip).
+
+### N8.9 The R Code pill
+`export_page_ui()` wraps the page in two pills, `tabs` = `content` / `code`, both in the `export` namespace and served by `export_server()`, so the script options (`code_source`, `code_path`, `code_figures`) are one set of inputs read by the R Code pill and by the zip (`opts$script` in the build). `is_demo` (`identical(dataset, liver_tx)`) decides whether the Built-in / A file choice is offered.
+
+- **Generated only when looked at.** `code_script()` is a reactive read by `output$code`, `output$code_info` and Download Script - all suspended while the pill is hidden - so nothing is generated until the pill is shown, and it regenerates on a state or option change only while it is open. The messages slot is never suspended (§N1.12 / `edark_messages_server()`), so it reads the cheap `.cg_plan()`, not the script.
+- **Copy** is `[data-copy-target]` in `edark_export.js`: `navigator.clipboard` in a secure context (localhost is one), else a hidden textarea and `execCommand("copy")`.
+- **Testing it with chromote after a session launch:** `edark(session = )` navigates once the session is applied, which can happen after a test has already opened Export - the R Code pill is then hidden and its output never renders. Wait for the session to settle before clicking (`ui_check.R`).

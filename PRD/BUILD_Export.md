@@ -34,7 +34,7 @@ change in Stage 1); the PRD rewrite is batched at the end.
 | X4 | **Tables are Word only** (`.docx`, one file per table, via flextable). One source of truth; merged headers survive. No xlsx tables. |
 | X5 | **Figures are PNG**, 8 × 6 in at 300 dpi unless the plot carries its own size (forest plot height scales with rows, `attr(, "n_rows")`). |
 | X6 | **Data is optional**: the full working dataset, unmodified (no added split column, no `.edark_row_id`), in one chosen format: RDS (keeps types and levels), CSV, SPSS `.sav`, Stata `.dta`, Excel `.xlsx`. The train/test split is reproducible from the spec (`analysis_split()` reads a column already in the data), so nothing is added. |
-| X7 | **Reproduction = a session file + a readable change log.** `reproduce/session.edark.rds` written by `build_session()` (no second format), with its own "include input dataset" option (default off, same governance note as Session › Save). `reproduce/prepare_steps.txt` lists dropped columns, type overrides, transforms and filters in words. `reproduce/analysis_script.R` is listed as **coming soon** (disabled) until Phase 5b. |
+| X7 | **Reproduction = a session file + a readable change log.** `reproduce/session.edark.rds` written by `build_session()` (no second format), with its own "include input dataset" option (default off, same governance note as Session › Save). `reproduce/prepare_steps.txt` lists dropped columns, type overrides, transforms and filters in words. `reproduce/analysis_script.R` is the R script of the R Code pill (§A7.9, §A10.6; built 2026-10-06 - it was listed as coming soon until then). |
 | X8 | **No `manifest.json`, no nested analysis package.** A `README.txt` at the root says what each folder holds, when the zip was made, from which dataset (signature, dims) and which model. |
 | X9 | **Only current outputs can be exported.** Every item is listed from the start; an item is selectable only when its source exists and is not stale. Not-run and stale items are shown greyed with a badge naming where they are made. |
 | X10 | **Numbers that are not a table or a figure go in a per-folder notes document** (`<folder>_notes.docx`), optional and checked by default. It is built from the same structures the screen renders (the `metrics` and `messages` data frames of diagnostics and performance, `build_analysis_summary()` sections, run settings), so screen and export cannot disagree. See §4. |
@@ -69,7 +69,7 @@ edark_export_2026-10-05_142530/
 ├── reproduce/
 │   ├── session.edark.rds                    (+ input dataset if ticked)
 │   ├── prepare_steps.txt
-│   └── analysis_script.R                    coming soon - disabled
+│   └── analysis_script.R                    the R Code pill's script (§A7.9)
 ├── table1/
 │   ├── table1_overall.docx
 │   ├── table1_by_exposure.docx
@@ -287,7 +287,7 @@ plain `Rscript` on hand-built `analysis_result` lists.
 
 **Accept:** with no Analyze work, only `data/` and `reproduce/` items are `available`; after
 a fit with diagnostics, changing a covariate turns model / diagnostics / results items
-`stale` with a reason; `analysis_script.R` is always `coming_soon`.
+`stale` with a reason; `analysis_script.R` was `coming_soon` (it is always `available` since 2026-10-06).
 
 ### Stage 3 - Writers + assembler
 
@@ -352,6 +352,6 @@ prediction model puts Performance before Results.
 
 - Export presets (Manuscript / Full archive / Data only).
 - PDF report (recommended route: HTML → `pagedown::chrome_print`).
-- `analysis_script.R` (Phase 5b codegen).
+- ~~`analysis_script.R` (Phase 5b codegen)~~ - built 2026-10-06, branch `r-code-gen-v1` (§A7.9).
 - Import of an export back into EDARK.
 - Explore outputs in the zip (X2 - by decision, not deferral).

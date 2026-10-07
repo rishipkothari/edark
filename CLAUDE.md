@@ -55,7 +55,7 @@ R/
 ├── module_explore_output.R     Explore result pane — plot + action toolbar; variable summary and custom-report state go to the info pane
 ├── module_appearance.R         Explore › Appearance panel — the app's only plot-aesthetics controls; sole writer of the five aesthetic shared_state fields
 ├── module_report.R             Report tab — Full / Custom underline tabs; Full has a config pane + resolved section list, Custom has no centre (D11)
-├── module_export.R             4 · Export page - Build & Download (config), left pane also holds selection count, Select all / Clear and Download Again; the zip as a plain-language checklist in sections, options on their rows (centre), zip contents (info); ticked build with Cancel, then auto-download (§A10, §N8)
+├── module_export.R             4 · Export page - two pills, Content and R Code (§A10.6). Content: Build & Download (config), left pane also holds selection count, Select all / Clear and Download Again; the zip as a plain-language checklist in sections, options on their rows (centre), zip contents (info); ticked build with Cancel, then auto-download (§A10, §N8)
 ├── service_export.R            Export registry export_items() (every file + available / stale / not run), file writers, per-folder notes docs, README, build job; pure
 ├── service_export_report.R     Compiled export report - one block list rendered to Word (template + .docx_* helpers) or self-contained HTML; pure
 │
@@ -81,7 +81,7 @@ R/
 ├── service_analysis_tables.R       Table 1 (gtsummary); Model › Results table (own data.frame → gt / flextable), fit statistics (Phases 2, 7)
 ├── service_analysis_plots.R        ggplot figures from plain data — diagnostic plots (Phase 6); performance plots (Phase 6b); forest plot (Phase 7)
 ├── service_analysis_variable_selection.R  Univariable screen / stepwise / LASSO (Phase 3)
-├── service_analysis_codegen.R      Reproducible R script generator (Phase 5)
+├── service_analysis_codegen.R      generate_analysis_script() - the R script that repeats the preparation and every current Analyze step (§A7.9); pure; helper copies from inst/codegen/helpers.R
 │
 └── data.R                      Roxygen docs for built-in liver_tx dataset
 
@@ -93,6 +93,8 @@ data-raw/
 
 inst/
 ├── report_template.Rmd             Rmd template for HTML report output
+├── codegen/
+│   └── helpers.R                   Copies of the app functions that decide numbers, pasted into the R script by chunk - change with the function they copy (§N6.14)
 ├── templates/
 │   ├── ppt_16x9_blank_template.pptx   Bundled slide template for PPT output
 │   └── word_docx_blank_template.docx  Bundled Word template for DOCX output - Title,
@@ -184,7 +186,7 @@ main-specific questions.
 ### Analyze
 
 ### In progress
-Phases 0–7 and 6b complete; Export moved to the top-level 4 · Export page (built 2026-10-05, `PRD/BUILD_Export.md`). Phase 5b code generator (`service_analysis_codegen.R`) deferred — Step 5's R Code Preview is a placeholder; it should consume `prepare_snapshot` + the spec (incl. `purpose_specification`). Phase definitions and acceptance criteria: `PRD/BUILD_Analysis.md`.
+Phases 0–7, 6b and 5b complete; Export moved to the top-level 4 · Export page (built 2026-10-05, `PRD/BUILD_Export.md`). Phase 5b R script generator built 2026-10-06 on branch `r-code-gen-v1` (4 · Export › R Code, §A7.9; check with `Rscript tests/manual/codegen/run_check.R`). Phase definitions and acceptance criteria: `PRD/BUILD_Analysis.md`.
 - **Performance validation follow-ups** (Phase 7b built 2026-09-19): optional shrunk-coefficient output from the bootstrap calibration slope; decision curve analysis; CV / bootstrap for mixed models with several cluster variables groups by the first one only.
 
 #### High magnitude
@@ -211,7 +213,6 @@ Phases 0–7 and 6b complete; Export moved to the top-level 4 · Export page (bu
 - **Export: two checks left (branch `export_v1`).** Verified 2026-10-05 except (a) the stale path driven through the UI (Prepare change after the freeze, covariate change after a fit - the logic is unit-tested) and (b) the Word report's layout opened in Word (§N8, `PRD/BUILD_Export.md` §7).
 - Export presets (Manuscript / Full archive / Data only) - deferred from `PRD/BUILD_Export.md`.
 - Export PDF report - recommended route HTML → `pagedown::chrome_print` (needs Chrome / Edge; disable with a reason when absent).
-- Export `reproduce/analysis_script.R` - listed as coming soon; needs Phase 5b.
 
 ### Low magnitude
 - Splash card overflows on mid-width windows. After the 2x scale-up its min-width is 800px, but the fallback rule in `edark.css` section 9 only triggers below 460px, so roughly 460-840px of window width overflows horizontally. Raise that breakpoint to about 880px.

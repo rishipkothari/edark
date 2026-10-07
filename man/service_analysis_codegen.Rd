@@ -4,12 +4,24 @@
 \alias{service_analysis_codegen}
 \title{Analysis R Code Generation Service}
 \description{
-Dynamically assembles a self-contained, executable R script from the
-confirmed \code{analysis_spec}. Generated at model specification time
-(Step 5) and cached in \code{analysis_result$generated_r_script}. The
-script covers all three variable selection methods (run methods use actual
-parameters; unrun methods are fully commented out), the confirmed model
-fit, all applicable diagnostics, and results extraction. Uses
-\code{pacman::p_load()} and \code{\%>\%} throughout. See PRD §7.9.
-Implemented in Phase 5 of the build plan.
+Writes a self-contained, executable R script that repeats the work done in
+EDARK (PRD §A7.9): it rebuilds the working dataset from the input dataset
+(launch type casting, then Prepare's type changes, columns, transforms and
+row filters) and repeats every Analyze step that has been run and is
+current - Table 1, the univariable screen, stepwise, LASSO, collinearity,
+the model, diagnostics, performance (apparent, held-out test set,
+cross-validation, bootstrap) and the Model › Results outputs - with the
+settings and random seeds the app used. A step that was not run is left
+out; a stale one is left out with a message (the Export rule, X9).
+}
+\details{
+The script is generated on demand from the export state snapshot
+(\code{export_state()}), never cached: the 4 · Export › R Code page builds
+it when opened, and the export zip writes it as
+\code{reproduce/analysis_script.R}. Pure - no Shiny.
+
+Where the app's own code decides a number, the script carries a copy of
+that function (\code{inst/codegen/helpers.R}), so the script and the app
+compute the same values. If they disagree, the app has a bug - or one of
+the copies has drifted (§N6.14).
 }

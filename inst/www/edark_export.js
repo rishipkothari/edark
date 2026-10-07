@@ -11,7 +11,8 @@
        the session's original data) are ordinary Shiny inputs bound by id;
        here they are only disabled while their item is unticked.
    Select all / Clear sit in the config pane, outside the checklist.
-   Plus one message handler: start the download once a build is ready.
+   Plus one message handler: start the download once a build is ready; and
+   the R Code pill's Copy button ([data-copy-target]).
    ========================================================================== */
 
 (function () {
@@ -105,6 +106,33 @@
     a.removeAttribute("tabindex");
     a.click();
   }
+
+  // R Code pill, Copy: the text of the element the button names, with a short
+  // "Copied" on the button. navigator.clipboard needs a secure context
+  // (localhost is one); otherwise fall back to a selected textarea.
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-copy-target]");
+    if (!btn) return;
+    var el = document.getElementById(btn.getAttribute("data-copy-target"));
+    if (!el) return;
+    var text = el.innerText;
+    var done = function () {
+      var old = btn.innerHTML;
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.innerHTML = old; }, 1500);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } finally { document.body.removeChild(ta); }
+    }
+  });
 
   if (window.Shiny && Shiny.addCustomMessageHandler) {
     Shiny.addCustomMessageHandler("edark_export_download", onDownload);

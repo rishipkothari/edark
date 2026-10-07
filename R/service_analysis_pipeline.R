@@ -85,7 +85,6 @@ reset_analysis_pipeline <- function(shared_state, from_step) {
       )
       res$diagnostics        <- NULL
       res$performance        <- NULL
-      res$generated_r_script <- NULL
       res$methods_paragraph  <- NULL
       res$results_generation <- NULL
 
