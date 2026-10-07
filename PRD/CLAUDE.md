@@ -1,4 +1,4 @@
-# CLAUDE.md — EDARK v0.9
+# CLAUDE.md — EDARK v1.0
 
 EDARK is an R package: an interactive Shiny GUI for preparing, exploring, reporting on and modelling tabular clinical research data. `edark(dataset)` → **1 · Prepare** → **2 · Explore** (Plot + Report) → **3 · Analyze** → **4 · Export**.
 

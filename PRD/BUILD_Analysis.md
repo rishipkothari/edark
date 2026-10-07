@@ -469,7 +469,7 @@ Extends Phase 6b's train/test option into internal validation. PRD §A1.4a, §A5
 
 **S1 - Service layer** (`service_session.R`)
 - `dataset_definition()` (input classes), `dataset_signature()`, `build_session()`, `read_session()` / `validate_session()`, `.SESSION_SCHEMA_VERSION`, `session_dataset_mismatch()` (exact match, §M8.4), `session_prepare_dataset()` (refuses rather than adjusts, §M8.6), thumbnail pack / unpack
-- No migration framework: pre-release, the schema changes in place (§M8.5)
+- No migration framework yet: schema 1 is the first locked format; the first change adds one (§M8.5)
 - `testthat` unit tests: `tests/testthat/test-service_session.R`
 
 **S2 - Save** (`module_session.R`)

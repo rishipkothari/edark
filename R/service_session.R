@@ -14,9 +14,10 @@
 NULL
 
 
-# Bump when the file's structure changes. Pre-release there are no migrations:
-# change the structure and this number together (see CLAUDE.md, Coding
-# philosophy). A file with a higher number is refused.
+# Schema 1 is the first locked format (EDARK 1.0). Any change to the file's
+# structure bumps this number and adds .session_migrate_vN_to_vM(), run in
+# order on load (§M8.5; see CLAUDE.md, Coding philosophy). A file with a
+# higher number is refused.
 .SESSION_SCHEMA_VERSION <- 1L
 
 .SESSION_EXT <- ".edark.rds"

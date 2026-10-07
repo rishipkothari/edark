@@ -1,4 +1,4 @@
-# CLAUDE.md — EDARK v0.9
+# CLAUDE.md — EDARK v1.0
 
 ## What this is
 An R package providing an interactive Shiny GUI for exploratory data analysis of tabular datasets, focused on clinical research workflows. A researcher calls `edark(dataset)`, prepares the data, explores variables interactively, and optionally exports a report.
@@ -143,7 +143,7 @@ main-specific questions.
 - do not commit without permission
 - if you are instructed to commit, add a message of at most 6 sentences, be brief. also, push after commits
 - remind me to push after commits
-- when a commit changes what a session saves (`build_session()` in `R/service_session.R`, or the shape of any state it copies - `last_applied_specs`, `custom_report_items`, `variable_roles`, `purpose_specification`, `validation_settings`), evaluate whether `.SESSION_SCHEMA_VERSION` needs a bump and an upgrade function. Pre-release: change the structure in place, no migrations (§M8.5); after release: bump + `.session_migrate_vN_to_vM()`
+- when a commit changes what a session saves (`build_session()` in `R/service_session.R`, or the shape of any state it copies - `last_applied_specs`, `custom_report_items`, `variable_roles`, `purpose_specification`, `validation_settings`), raise it with me before committing - schema 1 is locked (EDARK 1.0), so any change means a `.SESSION_SCHEMA_VERSION` bump + `.session_migrate_vN_to_vM()` (§M8.5)
 - before every commit, update `EDARK_LAST_UPDATE` in `R/ui_helpers.R` to that day's date - it is shown on the splash screen. Keep `EDARK_VERSION` in step with `Version:` in DESCRIPTION.
 
 ---

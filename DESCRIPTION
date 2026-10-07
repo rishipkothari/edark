@@ -1,6 +1,6 @@
 Package: edark
 Title: Interactive Exploratory Data Analysis GUI for Clinical Research
-Version: 0.9.0
+Version: 1.0.0
 Authors@R:
     person("Rishi", "Kothari", role = c("aut", "cre"),
            email = "rishi@example.com")

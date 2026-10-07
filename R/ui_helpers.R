@@ -645,7 +645,7 @@ edark_aesthetics_controls <- function(ns) {
 #'
 #' @keywords internal
 #' @noRd
-EDARK_VERSION <- "0.9"
+EDARK_VERSION <- "1.0"
 
 #' @rdname EDARK_VERSION
 #' @keywords internal

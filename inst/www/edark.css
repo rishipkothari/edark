@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EDARK v0.9 - the application stylesheet
+   EDARK v1.0 - the application stylesheet
 
    The one CSS file: no SCSS, no build step (PRD/BUILD_UI-redesign.md D5).
    Loaded by edark() through addResourcePath("edark", system.file("www", ...)).

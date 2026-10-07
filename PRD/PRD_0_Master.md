@@ -303,7 +303,7 @@ This is separate from the full-data hash Step 1 stores at freeze (`specification
 
 `session_schema_version` describes the file format, not the app version. A file with a higher number than the app knows is refused: *"This session was saved with a newer version of EDARK (x.y). Update EDARK to load it."* An unreadable file, one without the session structure, or one holding code is refused: *"This file is not a valid EDARK session."*
 
-**Pre-release, there are no migrations.** The structure changes in place and old files simply stop loading. Once EDARK is released, every schema change bumps the number and ships an upgrade function (`.session_migrate_v1_to_v2()`, ...) run in order on load. See the reminder in the root `CLAUDE.md` (Coding philosophy).
+**Schema 1 is the first locked format** (EDARK 1.0); no earlier schema was ever used. From here every schema change bumps the number and ships an upgrade function (`.session_migrate_v1_to_v2()`, ...) run in order on load. See the reminder in the root `CLAUDE.md` (Coding philosophy).
 
 ### M8.6 No Partial Loads
 
