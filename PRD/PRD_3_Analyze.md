@@ -1039,25 +1039,25 @@ Output: coefficient path plot data, cross-validation plot data, suggested variab
 
 ### A7.9 R Code Generation
 
-**Service file:** `R/service_analysis_codegen.R` (`generate_analysis_script(st, opts)`); helper copies in `inst/codegen/helpers.R`. **Page:** 4 · Export › R Code (§A10.6). Built 2026-10-06.
+**Service file:** `R/service_analysis_codegen.R` (`generate_analysis_script(st, opts)`). **Page:** 4 · Export › R Code (§A10.6). Built 2026-10-06.
 
-One self-contained R script that repeats the work done in EDARK. It is generated from the current state (the export snapshot, `export_state()`) whenever it is shown - on entering the R Code pill, again on any change while it is open, on Download Script, and when the zip writes `reproduce/analysis_script.R`. It is never cached in `analysis_result`.
+Two R files that repeat the work done in EDARK, run without EDARK installed: **`analysis_script.R`**, the analysis, which starts with `source("edark_functions.R")`, and **`edark_functions.R`**, EDARK's own functions that the analysis calls. They are generated from the current state (the export snapshot, `export_state()`) whenever it is shown - on entering the R Code pill, again on any change while it is open, on Download Scripts, and when the zip writes `reproduce/`. It is never cached in `analysis_result`.
 
 **Scope - what was run, and is current.** A step that was not run is left out; a step whose output is stale is left out with a message (the Export rule, X9; status from `analysis_output_status()`). In order:
 1. **Input data** - `readRDS(<path>)` (default `input_data.rds`), or `edark::liver_tx` when the app was launched on the built-in dataset; skipped when `input_data` already exists, and checked against the input's row and column count.
 2. **Column types** - the conversions `cast_column_types()` made at launch, column by column.
 3. **Prepare** - type changes, columns, transforms, row filters, in the §P7.2 order, from `last_applied_specs`. Values that depend on the data (cut-points inside the range, whether a column has spread) are resolved at generation, against the same intermediate dataset the app saw. Ends with a row / column count check.
 4. **Analysis dataset** - `.edark_row_id`, roles, reference levels, model purpose and, for a held-out test set, the training / test rows.
-5. **Table 1** - only the tables generated, each with the gtsummary steps it actually ran (read from the stored table's `call_list`).
-6. **Variable selection** - the univariable screen, stepwise and LASSO only if run, with the settings and seed of the run; collinearity if computed. A run that ended in an error is written commented out.
-7. **Model** - the fitted model from `specification_snapshot`: model rows, formula, engine and optimizer, coefficient table, fit statistics.
-8. **Diagnostics** - only the checks run.
-9. **Performance** - the measures run, on the sets of rows of the validation method actually used (`performance$validation`: apparent, test set, cross-validation or bootstrap, with its folds / repeats / resamples and seed).
-10. **Results** - unadjusted models, results table, forest plot if generated; the methods paragraph as a comment.
+5. **Table 1** - `build_table1(analysis_data, spec)`: the tables generated, from the same settings.
+6. **Variable selection** - the univariable screen, stepwise (`stats::step()`) and LASSO (`glmnet::cv.glmnet()`) written out, only if run, with the settings and seed of the run; collinearity (`compute_collinearity()` and its heat maps) if computed. A run that ended in an error is written commented out.
+7. **Model** - the fit written out (model rows, formula, engine and optimizer), then `edark_coef_table()` and `.fit_statistics()`, and `model_result`: the parts of `analysis_result` the output builders read.
+8. **Diagnostics** - only the checks run, one EDARK check function each (`.diag_residuals()` ...), with its figures.
+9. **Performance** - the measures run, on the sets of rows of the validation method actually used (`performance$validation`: apparent, test set, cross-validation or bootstrap, with its folds / repeats / resamples and seed). The seed and the drawing of every fold / resample are written out, then one EDARK step per refit (`.perf_cv_step()` / `.perf_boot_step()`) and `.perf_job_finish()` - the sets, summary table and figures as the app stores them.
+10. **Results** - `fit_unadjusted_models()`, `build_results_table()`, `build_forest_plot()`, `build_fit_statistics_table()` for the outputs generated; the methods paragraph as a comment.
 
-**Same numbers as the app.** Every random step sets the seed the app used, immediately before it (`set.seed(<lasso_seed>)` before `cv.glmnet()`, `set.seed(<validation seed>)` before the folds / resamples are drawn, all up front as in the app). Where an EDARK function decides a number - the coefficient table and its CIs, model rows, the Table 1 categorical test, the performance measures, folds and resamples - the script carries a copy of it (`inst/codegen/helpers.R`, one chunk per function, only the chunks the script uses). If the script and the app disagree, the app has a bug or a copy has drifted (§N6.14); `tests/manual/codegen/run_check.R` compares the two on seven scenarios.
+**Same numbers and figures as the app - one source.** The analysis decisions are written out in `analysis_script.R` (data preparation, formulas, the fits, `step()`, `cv.glmnet()`, every seed - set immediately before its step, with every fold / resample drawn up front as in the app). Every reported number, table and figure comes from EDARK's own function, and `edark_functions.R` holds those functions **printed from the running app** (deparsed from the edark namespace, with everything they call) - nothing is copied by hand, so the script cannot drift from the app. The script also carries `spec`, the settings chosen in EDARK, which those functions read. If the script and the app disagree, the app has a bug (§N6.14); `tests/manual/codegen/run_check.R` compares every number, table and figure on seven scenarios.
 
-**Options** (one set, read by the R Code pill and the zip): input dataset (built-in / file path), code for figures on or off.
+**Options** (one set, read by the R Code pill and the zip): input dataset (built-in / file path), print figures on or off (the figures are always computed).
 
 **Script setup:**
 ```r
@@ -1071,8 +1071,14 @@ options(repos = c(
 if (!requireNamespace("pacman", quietly = TRUE)) {
   install.packages("pacman")
 }
-pacman::p_load(dplyr, ...)   # only the packages the script uses
+pacman::p_load(dplyr)
+# Called as pkg::fun(), so installed if missing but not attached
+for (pkg in c(...)) {
+  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
+}
+source("edark_functions.R")
 ```
+Only dplyr is attached (its verbs and `%>%` are used without a prefix). Every other package is called as `pkg::fun()` - the list is read from both files - and only installed: attaching pROC or lmerTest would mask `stats` functions.
 `pkgType = "binary"` is set only where CRAN has binaries; on Linux it would stop `install.packages()`.
 
 Plain ASCII (non-ASCII text becomes `\u` escapes), `%>%` throughout, lines wrapped at 78 characters.
@@ -1241,7 +1247,7 @@ edark_export_YYYY-MM-DD_HHMMSS/
 ├── README.txt                    always: contents, dataset, model, renamed columns, files left out
 ├── analysis_report.docx | .html  compiled report (optional)
 ├── data/working_dataset.{rds,csv,sav,dta,xlsx}
-├── reproduce/  session.edark.rds, prepare_steps.txt, analysis_script.R (§A7.9)
+├── reproduce/  session.edark.rds, prepare_steps.txt, analysis_script.R + edark_functions.R (§A7.9)
 ├── table1/     table1_overall|by_exposure|by_outcome.docx, table1_notes.docx
 ├── variable_selection/  tables/ figures/ variable_selection_notes.docx
 ├── model/      tables/ (results_table, fit_statistics), figures/forest_plot.png,
@@ -1264,12 +1270,12 @@ Word (bundled template, title page, TOC) or HTML (one self-contained file). Orde
 
 **Built 2026-10-06.** 4 · Export has two pills: **Content** (the zip, A10.1-A10.4) and **R Code** (the analysis script, §A7.9). Same page contract as every page:
 
-- **Config:** Input dataset (Built-in liver_tx / A file, shown only when the app was launched on `liver_tx`; the file path otherwise), Include › Code for figures, then **Download Script** at the bottom.
-- **Result:** the script, scrolling in the centre, with **Copy** in a toolbar above it.
-- **Info:** what the script repeats (each step: Included / Not run / Out of date), lines, the file it reads, packages, random seeds.
+- **Config:** Input dataset (Built-in liver_tx / A file, shown only when the app was launched on `liver_tx`; the file path otherwise), Include › Code for figures, then **Download Scripts** (a zip of both files) at the bottom.
+- **Result:** card tabs **analysis_script.R** and **edark_functions.R**, each scrolling, each with **Copy** in a toolbar above it.
+- **Info:** what the script repeats (each step: Included / Not run / Out of date), lines of each file, the number of EDARK functions, the file it reads, packages, random seeds.
 - **Messages:** steps left out because they are out of date; Prepare's unapplied changes.
 
-The script is generated from the current state when the pill is shown, and again on any change while it is open. The options are one set of inputs: the Content pill's `reproduce/analysis_script.R` (ticked by default, always available) is the script the R Code pill shows.
+The script is generated from the current state when the pill is shown, and again on any change while it is open. The options are one set of inputs: the Content pill's `reproduce/analysis_script.R` row (ticked by default, always available) writes the two files the R Code pill shows.
 
 ### A10.5 Not Built
 
@@ -1336,7 +1342,7 @@ R/
 ├── service_analysis_validation.R         ← preflight validator
 ├── service_analysis_summary.R            ← Step 5 Summary builder (audit of every step)
 ├── service_analysis_variable_selection.R ← univariable, stepwise, LASSO
-├── service_analysis_codegen.R            ← R script generator (§A7.9; helpers in inst/codegen/helpers.R)
+├── service_analysis_codegen.R            ← R script generator (§A7.9)
 ├── service_export.R                      ← export registry, writers, build job
 ├── service_export_report.R               ← compiled export report
 ├── service_analysis_pipeline.R           ← reset_analysis_pipeline()

@@ -77,18 +77,31 @@ export_code_ui <- function(id, is_demo = FALSE) {
       edark_section_label("Include"),
       shiny::checkboxInput(ns("code_figures"), "Code for figures", value = TRUE, width = "100%"),
       shiny::tags$hr(class = "my-3"),
-      edark_button(ns, "code_download", "Download Script", icon = "download", type = "download"),
+      edark_button(ns, "code_download", "Download Scripts", icon = "download", type = "download"),
       shiny::tags$p(class = "small text-muted mt-3 mb-0",
-                    "The same script goes into the zip on the Content tab, as",
-                    shiny::tags$code("reproduce/analysis_script.R"))
+                    "A zip of both files. The same two files go into the zip on the Content tab, in",
+                    shiny::tags$code("reproduce/"))
     ),
     messages = edark_messages_ui(ns, "code_messages"),
-    result = shiny::tagList(
-      edark_action_toolbar(
-        edark_button(ns, "code_copy", "Copy", icon = "copy", size = "toolbar",
-                     `data-copy-target` = ns("code"))
+    # Card tabs: two views of the one generated script (NOTE_UI-principles)
+    result = bslib::navset_card_tab(
+      id = ns("code_tabs"),
+      bslib::nav_panel(
+        "analysis_script.R", value = "script",
+        edark_action_toolbar(
+          edark_button(ns, "code_copy", "Copy", icon = "copy", size = "toolbar",
+                       `data-copy-target` = ns("code"))
+        ),
+        shiny::div(class = "edark-code-block", shiny::verbatimTextOutput(ns("code")))
       ),
-      shiny::div(class = "edark-code-block", shiny::verbatimTextOutput(ns("code")))
+      bslib::nav_panel(
+        "edark_functions.R", value = "functions",
+        edark_action_toolbar(
+          edark_button(ns, "code_copy_fn", "Copy", icon = "copy", size = "toolbar",
+                       `data-copy-target` = ns("code_fn"))
+        ),
+        shiny::div(class = "edark-code-block", shiny::verbatimTextOutput(ns("code_fn")))
+      )
     ),
     info = shiny::uiOutput(ns("code_info"))
   )
@@ -197,12 +210,22 @@ export_server <- function(id, shared_state, dataset_input) {
     # can use it without generating the script.
     code_plan <- shiny::reactive(.cg_plan(st()))
 
-    output$code <- shiny::renderText(code_script()$text)
+    output$code    <- shiny::renderText(code_script()$text)
+    output$code_fn <- shiny::renderText(code_script()$functions$text)
 
+    # Both files, in a zip: the script sources edark_functions.R from its folder
     output$code_download <- shiny::downloadHandler(
-      filename = function() paste0("edark_analysis_", format(Sys.time(), "%Y-%m-%d_%H%M%S"), ".R"),
-      content  = function(file) writeLines(code_script()$text, file, useBytes = TRUE),
-      contentType = "text/plain"
+      filename = function() paste0("edark_analysis_script_", format(Sys.time(), "%Y-%m-%d_%H%M%S"), ".zip"),
+      content  = function(file) {
+        g   <- code_script()
+        dir <- tempfile("edark_script_")
+        dir.create(dir)
+        on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+        writeLines(g$text, file.path(dir, "analysis_script.R"), useBytes = TRUE)
+        writeLines(g$functions$text, file.path(dir, "edark_functions.R"), useBytes = TRUE)
+        zip::zip(file, files = c("analysis_script.R", "edark_functions.R"), root = dir)
+      },
+      contentType = "application/zip"
     )
 
     edark_messages_server(output, shiny::reactive({
@@ -221,8 +244,10 @@ export_server <- function(id, shared_state, dataset_input) {
           edark_info_row(s$title[i], if (s$status[i] == "included") .status(s$status[i])
                                      else shiny::span(class = "text-muted fw-normal", .status(s$status[i])))
         }),
-        edark_section_label("Script"),
-        edark_info_row("Lines", format(length(g$lines), big.mark = ",")),
+        edark_section_label("Files"),
+        edark_info_row("analysis_script.R", sprintf("%s lines", format(length(g$lines), big.mark = ","))),
+        edark_info_row("edark_functions.R", sprintf("%s lines", format(length(g$functions$lines), big.mark = ","))),
+        edark_info_row("EDARK functions used", g$functions$n),
         edark_info_row("Reads", if (identical(op$data_source, "liver_tx")) "edark::liver_tx" else op$data_path),
         edark_info_row("Packages", length(g$packages)),
         shiny::tags$p(class = "small text-muted mt-1 mb-0", paste(g$packages, collapse = ", ")),
@@ -516,7 +541,7 @@ export_server <- function(id, shared_state, dataset_input) {
   working_dataset            = "Working dataset",
   session                    = "EDARK session file",
   prepare_steps              = "Data preparation steps",
-  analysis_script            = "R script that reproduces the analysis",
+  analysis_script            = "R script that reproduces the analysis (2 files)",
   table1_overall             = "Table 1 - whole cohort",
   table1_by_exposure         = "Table 1 - by exposure",
   table1_by_outcome          = "Table 1 - by outcome",

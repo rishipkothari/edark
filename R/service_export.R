@@ -824,9 +824,13 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
       )
       saveRDS(s, path)
     },
-    script = writeLines(generate_analysis_script(st, utils::modifyList(opts$script %||% list(),
-                                                       list(time = Sys.time())))$text,
-                        path, useBytes = TRUE),
+    script = {
+      # Two files: the analysis, and EDARK's functions it sources (§A7.9)
+      g <- generate_analysis_script(st, utils::modifyList(opts$script %||% list(), list(time = Sys.time())))
+      writeLines(g$text, path, useBytes = TRUE)
+      writeLines(g$functions$text, file.path(dirname(path), "edark_functions.R"), useBytes = TRUE)
+      return(list(extra_files = file.path(dirname(item$path), "edark_functions.R")))
+    },
     prepare_steps = writeLines(c(
       "Data preparation - how the working dataset was made from the input dataset.",
       "Steps run in this order: type overrides, column selection, transforms, row filters.",
@@ -883,8 +887,9 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
   reproduce          = paste("session.edark.rds restores this preparation and analysis setup:",
                              "edark(input_data, session = \"session.edark.rds\"), where input_data is the",
                              "dataset first given to edark(). prepare_steps.txt lists the preparation in words.",
-                             "analysis_script.R repeats the preparation and every current analysis step in plain R:",
-                             "set the path to the input dataset at its top and run it."),
+                             "analysis_script.R repeats the preparation and every current analysis step in plain R,",
+                             "using EDARK's own functions from edark_functions.R: keep the two together, set the path",
+                             "to the input dataset at the top of analysis_script.R and run it from this folder."),
   table1             = "Table 1 as Word tables, and notes on how it was built.",
   variable_selection = "Univariable screen, stepwise / LASSO selection and collinearity.",
   model              = "Results table, fit statistics, forest plot, methods paragraph and model notes.",
@@ -899,6 +904,8 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
   sig <- tryCatch(dataset_signature(dataset_definition(di)), error = function(e) "-")
   folders <- intersect(names(.EXPORT_FOLDERS), unique(written$folder))
   renamed <- do.call(rbind, lapply(notes, `[[`, "renamed"))
+  # Files written beside an item's own (the R script's edark_functions.R)
+  extra   <- unlist(lapply(notes, `[[`, "extra_files"))
 
   c(
     "EDARK export",
@@ -918,7 +925,7 @@ export_items <- function(st, data_format = "rds", report_format = "docx") {
       sprintf("%s  Compiled report of everything below that was current at export.",
               written$file[written$kind == "report"][1L]),
     unlist(lapply(folders, function(f) {
-      files <- written$path[written$folder == f]
+      files <- c(written$path[written$folder == f], extra[startsWith(extra, paste0(f, "/"))])
       c("", sprintf("%s/", f), paste0("  ", .EXPORT_FOLDER_NOTES[[f]]),
         paste0("    ", sub(paste0("^", f, "/"), "", files)))
     })),

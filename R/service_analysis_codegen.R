@@ -15,10 +15,12 @@
 #' it when opened, and the export zip writes it as
 #' \code{reproduce/analysis_script.R}. Pure - no Shiny.
 #'
-#' Where the app's own code decides a number, the script carries a copy of
-#' that function (\code{inst/codegen/helpers.R}), so the script and the app
-#' compute the same values. If they disagree, the app has a bug - or one of
-#' the copies has drifted (§N6.14).
+#' The analysis is written out step by step (data preparation, formulas, the
+#' fits, step(), cv.glmnet, the fold and resample loops, each with its seed);
+#' every reported number, table and figure comes from EDARK's own functions,
+#' which go in a second file, \code{edark_functions.R}, printed from the
+#' running app (\code{.cg_functions_file()}). Nothing is copied by hand, so the
+#' script cannot drift from the app (§N6.14).
 #'
 #' @name service_analysis_codegen
 NULL
@@ -157,21 +159,6 @@ NULL
   c("", "", paste0(bar, strrep("-", max(4L, 79L - nchar(bar)))))
 }
 
-# Helper chunks from inst/codegen/helpers.R, by name
-.cg_helper_chunks <- function() {
-  path <- system.file("codegen", "helpers.R", package = "edark")
-  if (!nzchar(path)) stop("inst/codegen/helpers.R not found.", call. = FALSE)
-  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-  starts <- grep("^# @chunk ", lines)
-  ends <- c(starts[-1L] - 1L, length(lines))
-  chunks <- lapply(seq_along(starts), function(i) {
-    x <- lines[(starts[i] + 1L):ends[i]]
-    while (length(x) && !nzchar(trimws(x[length(x)]))) x <- x[-length(x)]
-    x
-  })
-  stats::setNames(chunks, sub("^# @chunk ", "", lines[starts]))
-}
-
 .cg_mixed <- function(mt) isTRUE(mt %in% c("linear_mixed", "logistic_mixed"))
 .cg_logit <- function(mt) isTRUE(mt %in% c("logistic", "logistic_mixed"))
 
@@ -185,82 +172,6 @@ NULL
                            .cg_esc(optimizer)),
     logistic_mixed = sprintf("lme4::glmer(%s, data = %s, family = binomial(),\n  control = lme4::glmerControl(optimizer = %s))",
                              formula, data, .cg_esc(optimizer)))
-}
-
-
-# ── Public entry point ────────────────────────────────────────────────────────
-
-#' Generate the analysis R script
-#'
-#' @param st A snapshot from \code{export_state()}.
-#' @param opts A list: \code{data_source} (\code{"file"} reads the input
-#'   dataset with \code{readRDS(data_path)}; \code{"liver_tx"} uses the
-#'   built-in dataset), \code{data_path}, \code{figures} (logical: include the
-#'   ggplot code for figures), \code{time} (shown in the header).
-#' @return A list: \code{text} (the script, one string), \code{lines},
-#'   \code{sections} (data.frame: id, title, status - \code{"included"},
-#'   \code{"stale"}, \code{"not_run"} - and reason), \code{packages},
-#'   \code{seeds} (data.frame: what, seed) and \code{messages}
-#'   (data.frame: level, message).
-#' @export
-generate_analysis_script <- function(st, opts = list()) {
-  opts <- utils::modifyList(list(data_source = "file", data_path = "input_data.rds",
-                                 figures = TRUE, time = Sys.time()), opts)
-  plan <- .cg_plan(st)
-  inc  <- function(id) identical(plan$sections$status[plan$sections$id == id], "included")
-  ctx  <- .cg_context(st, plan, opts)
-
-  body <- list()
-  n <- 0L
-  .add <- function(title, lines) {
-    n <<- n + 1L
-    body[[length(body) + 1L]] <<- c(.cg_heading(n, title), lines)
-  }
-
-  .add("Input data", .cg_input(st, opts))
-  .add("Column types", .cg_types(st))
-  .add("Prepare", .cg_prepare(st, ctx))
-  if (inc("analysis_data")) .add("Analysis dataset (Analyze \u203a Setup)", .cg_analysis_data(st, ctx))
-  if (inc("table1"))        .add("Table 1 (Analyze \u203a Table 1)", .cg_table1(st, ctx))
-  if (any(vapply(c("univariable", "stepwise", "lasso", "collinearity"), inc, logical(1)))) {
-    .add("Variable selection (Analyze \u203a Variables)", .cg_variables(st, ctx, inc))
-  }
-  if (inc("model"))         .add("Model (Analyze \u203a Model \u203a Create)", .cg_model(st, ctx))
-  if (inc("diagnostics"))   .add("Diagnostics (Analyze \u203a Model \u203a Diagnostics)", .cg_diagnostics(st, ctx))
-  if (inc("performance"))   .add("Performance (Analyze \u203a Model \u203a Performance)", .cg_performance(st, ctx))
-  if (inc("results"))       .add("Results (Analyze \u203a Model \u203a Results)", .cg_results(st, ctx))
-
-  helpers <- .cg_helpers_needed(ctx, inc)
-  chunks  <- .cg_helper_chunks()
-  helper_lines <- if (length(helpers)) {
-    c("", "", "# ---- Helpers ------------------------------------------------------------------",
-      .cg_comment(c("Copies of the EDARK functions that decide the numbers below, so this script computes exactly what the app shows.")),
-      unlist(lapply(helpers, function(h) c("", chunks[[h]]))))
-  }
-
-  pkgs <- .cg_packages(ctx, inc)
-  # ggplot2 only when a figure was written (a script with no fitted output has none)
-  if (!any(grepl("ggplot(", unlist(body), fixed = TRUE) | grepl("ggroc(", unlist(body), fixed = TRUE))) {
-    pkgs <- setdiff(pkgs, "ggplot2")
-  }
-  lines <- c(
-    .cg_header(st, plan, opts),
-    .cg_setup(pkgs),
-    helper_lines,
-    unlist(body),
-    ""
-  )
-  # Plain ASCII throughout (headings carry the nav's "›")
-  lines <- gsub("\u203a", ">", lines, fixed = TRUE)
-
-  list(
-    text     = paste(lines, collapse = "\n"),
-    lines    = lines,
-    sections = plan$sections,
-    packages = pkgs,
-    seeds    = ctx$seeds,
-    messages = plan$messages
-  )
 }
 
 
@@ -328,115 +239,6 @@ generate_analysis_script <- function(st, opts = list()) {
       "Prepare has unapplied changes. The script rebuilds the last applied state.")
   }
   list(sections = sections, messages = msgs)
-}
-
-# Values shared by several sections
-.cg_context <- function(st, plan, opts) {
-  spec <- st$analysis_spec
-  res  <- st$analysis_result
-  snap <- res$specification_snapshot
-  mt   <- snap$model_design$model_type
-  vr   <- snap$variable_roles
-  pf   <- res$performance
-  dg   <- res$diagnostics
-  vi   <- res$variable_investigation
-  seeds <- data.frame(what = character(0), seed = integer(0), stringsAsFactors = FALSE)
-  if (identical(plan$sections$status[plan$sections$id == "lasso"], "included")) {
-    seeds[nrow(seeds) + 1L, ] <- list("LASSO cross-validation folds", as.integer(vi$lasso$seed %||% lasso_seed(spec)))
-  }
-  if (identical(plan$sections$status[plan$sections$id == "performance"], "included") &&
-      pf$validation$method %in% c("cv", "bootstrap")) {
-    seeds[nrow(seeds) + 1L, ] <- list(
-      if (pf$validation$method == "cv") "Cross-validation folds" else "Bootstrap resamples",
-      as.integer(pf$validation$seed))
-  }
-  list(
-    figures    = isTRUE(opts$figures),
-    model_type = mt,
-    logit      = .cg_logit(mt),
-    mixed      = .cg_mixed(mt),
-    outcome    = vr$outcome_variable,
-    preds      = .safe_preds(vr$exposure_variable, vr$final_model_covariates),
-    clusters   = if (.cg_mixed(mt)) vr$cluster_variables[nzchar(vr$cluster_variables)] else character(0),
-    optimizer  = if (isTRUE(snap$model_design$optimizer %in% .ANALYSIS_OPTIMIZERS)) snap$model_design$optimizer else "bobyqa",
-    perf       = pf,
-    diag       = dg,
-    split      = analysis_split(spec),
-    seeds      = seeds
-  )
-}
-
-.cg_helpers_needed <- function(ctx, inc) {
-  h <- character(0)
-  if (inc("table1")) h <- c(h, "format_p", "with_seed", "categorical_test")
-  if (inc("univariable") || inc("stepwise") || inc("lasso")) h <- c(h, "set_reference_levels", "droplevels_cols", "can_model")
-  if (inc("model")) h <- c(h, "set_reference_levels", "prepare_model_rows", "coef_table", "fit_statistics")
-  if (inc("univariable")) h <- c(h, "coef_table")
-  if (inc("performance")) {
-    h <- c(h, "predict_response", "performance_measures")
-    if (ctx$perf$validation$method %in% c("cv", "bootstrap")) h <- c(h, "performance_scores", "resample_refit")
-    if (identical(ctx$perf$validation$method, "cv")) h <- c(h, "cv_folds")
-    if (identical(ctx$perf$validation$method, "bootstrap")) h <- c(h, "bootstrap_samples")
-    if (ctx$logit) h <- c(h, "calibration_bins")
-  }
-  order <- names(.cg_helper_chunks())
-  intersect(order, unique(h))
-}
-
-.cg_packages <- function(ctx, inc) {
-  dg_checks <- ctx$diag$checks
-  t1_extra <- if (inc("table1")) c("cardx", "smd")
-  unique(c(
-    "dplyr",
-    if (ctx$figures) "ggplot2",
-    if (inc("table1")) "gtsummary", t1_extra,
-    if (inc("lasso")) "glmnet",
-    if (inc("model") && ctx$mixed) c("lme4", if (ctx$model_type == "linear_mixed") "lmerTest", "performance"),
-    if (inc("diagnostics") && any(c("vif", "residuals", "linearity") %in% dg_checks)) "performance",
-    if (inc("diagnostics") && identical(ctx$model_type, "linear") && "residuals" %in% dg_checks) "lmtest",
-    if (inc("diagnostics") && "separation" %in% dg_checks) "detectseparation",
-    if (inc("performance") && ctx$logit && "discrimination" %in% ctx$perf$checks) "pROC"
-  ))
-}
-
-
-# ── Header and setup ──────────────────────────────────────────────────────────
-
-.cg_header <- function(st, plan, opts) {
-  s   <- plan$sections
-  inc <- s$title[s$status == "included"]
-  out <- s[s$status != "included", , drop = FALSE]
-  c(
-    "# ==============================================================================",
-    "# EDARK analysis script",
-    sprintf("# Generated %s by EDARK %s", format(opts$time, "%Y-%m-%d %H:%M"), EDARK_VERSION),
-    "#",
-    .cg_comment(paste("Rebuilds the working dataset from the input dataset and repeats each EDARK",
-                      "step that has been run, with the same settings and random seeds:")),
-    paste0("#   - ", inc),
-    if (nrow(out) > 0L) c("# Not included:", paste0("#   - ", out$title, " (", tolower(gsub("_", " ", out$status)), ")")),
-    "#",
-    .cg_comment(paste("Run it top to bottom in a fresh R session. Each object is named in the",
-                      "comment above it. If this script and EDARK disagree, EDARK has a bug.")),
-    "# =============================================================================="
-  )
-}
-
-.cg_setup <- function(pkgs) {
-  c("", .cg_fill(r"---(
-# Binary packages install without compilers (Windows and macOS)
-if (.Platform$OS.type == "windows" || Sys.info()[["sysname"]] == "Darwin") {
-  options(pkgType = "binary")
-}
-options(repos = c(
-  RSPM = "https://packagemanager.posit.co/cran/latest",
-  CRAN = "https://cloud.r-project.org"
-))
-if (!requireNamespace("pacman", quietly = TRUE)) {
-  install.packages("pacman")
-}
-pacman::p_load({{pkgs}})
-)---", pkgs = paste(pkgs, collapse = ", ")))
 }
 
 
@@ -632,23 +434,339 @@ pacman::p_load({{pkgs}})
 }
 
 
+# ── Public entry point ────────────────────────────────────────────────────────
+
+#' Generate the analysis R script
+#'
+#' @param st A snapshot from \code{export_state()}.
+#' @param opts A list: \code{data_source} (\code{"file"} reads the input
+#'   dataset with \code{readRDS(data_path)}; \code{"liver_tx"} uses the
+#'   built-in dataset), \code{data_path}, \code{figures} (logical: print the
+#'   figures as the script runs), \code{time} (shown in the headers).
+#' @return A list: \code{text} and \code{lines} (the analysis script,
+#'   \code{analysis_script.R}), \code{functions} (\code{list(text, lines, n)}:
+#'   \code{edark_functions.R}, the EDARK functions the script calls and the
+#'   number of objects in it), \code{sections} (data.frame: id, title, status -
+#'   \code{"included"}, \code{"stale"}, \code{"not_run"} - and reason),
+#'   \code{packages}, \code{seeds} (data.frame: what, seed) and
+#'   \code{messages} (data.frame: level, message).
+#' @export
+generate_analysis_script <- function(st, opts = list()) {
+  opts <- utils::modifyList(list(data_source = "file", data_path = "input_data.rds",
+                                 figures = TRUE, time = Sys.time()), opts)
+  plan <- .cg_plan(st)
+  inc  <- function(id) identical(plan$sections$status[plan$sections$id == id], "included")
+  ctx  <- .cg_context(st, plan, opts)
+
+  body <- list()
+  n <- 0L
+  .add <- function(title, lines) {
+    n <<- n + 1L
+    body[[length(body) + 1L]] <<- c(.cg_heading(n, title), lines)
+  }
+
+  .add("Input data", .cg_input(st, opts))
+  .add("Column types", .cg_types(st))
+  .add("Prepare", .cg_prepare(st, ctx))
+  if (inc("analysis_data")) .add("Analysis dataset (Analyze \u203a Setup)", .cg_analysis_data(st, ctx))
+  if (inc("table1"))        .add("Table 1 (Analyze \u203a Table 1)", .cg_table1(st, ctx))
+  if (any(vapply(c("univariable", "stepwise", "lasso", "collinearity"), inc, logical(1)))) {
+    .add("Variable selection (Analyze \u203a Variables)", .cg_variables(st, ctx, inc))
+  }
+  if (inc("model"))         .add("Model (Analyze \u203a Model \u203a Create)", .cg_model(st, ctx))
+  if (inc("diagnostics"))   .add("Diagnostics (Analyze \u203a Model \u203a Diagnostics)", .cg_diagnostics(st, ctx))
+  if (inc("performance"))   .add("Performance (Analyze \u203a Model \u203a Performance)", .cg_performance(st, ctx))
+  if (inc("results"))       .add("Results (Analyze \u203a Model \u203a Results)", .cg_results(st, ctx, inc))
+  body <- gsub("\u203a", ">", unlist(body), fixed = TRUE)
+
+  # The EDARK functions the analysis calls, and everything they call
+  fns <- .cg_functions_file(.cg_entry_points(body), opts$time)
+  pkgs <- .cg_packages(c(body, fns$lines), inc)
+
+  lines <- c(.cg_header(st, plan, opts), .cg_setup(pkgs, fns$n), body, "")
+  list(
+    text      = paste(lines, collapse = "\n"),
+    lines     = lines,
+    functions = fns,
+    sections  = plan$sections,
+    packages  = pkgs,
+    seeds     = ctx$seeds,
+    messages  = plan$messages
+  )
+}
+
+# Values shared by several sections
+.cg_context <- function(st, plan, opts) {
+  spec <- st$analysis_spec
+  res  <- st$analysis_result
+  snap <- res$specification_snapshot
+  mt   <- snap$model_design$model_type
+  vr   <- snap$variable_roles
+  pf   <- res$performance
+  vi   <- res$variable_investigation
+  seeds <- data.frame(what = character(0), seed = integer(0), stringsAsFactors = FALSE)
+  if (identical(plan$sections$status[plan$sections$id == "lasso"], "included")) {
+    seeds[nrow(seeds) + 1L, ] <- list("LASSO cross-validation folds", as.integer(vi$lasso$seed %||% lasso_seed(spec)))
+  }
+  if (identical(plan$sections$status[plan$sections$id == "performance"], "included") &&
+      pf$validation$method %in% c("cv", "bootstrap")) {
+    seeds[nrow(seeds) + 1L, ] <- list(
+      if (pf$validation$method == "cv") "Cross-validation folds" else "Bootstrap resamples",
+      as.integer(pf$validation$seed))
+  }
+  list(
+    figures    = isTRUE(opts$figures),
+    model_type = mt,
+    logit      = .cg_logit(mt),
+    mixed      = .cg_mixed(mt),
+    outcome    = vr$outcome_variable,
+    preds      = .safe_preds(vr$exposure_variable, vr$final_model_covariates),
+    clusters   = if (.cg_mixed(mt)) vr$cluster_variables[nzchar(vr$cluster_variables)] else character(0),
+    optimizer  = if (isTRUE(snap$model_design$optimizer %in% .ANALYSIS_OPTIMIZERS)) snap$model_design$optimizer else "bobyqa",
+    perf       = pf,
+    diag       = res$diagnostics,
+    split      = analysis_split(spec),
+    seeds      = seeds
+  )
+}
+
+# Print a list of plots, when figures are on
+.cg_print <- function(ctx, expr) {
+  if (!ctx$figures) return(NULL)
+  sprintf("for (p in %s) print(p)", expr)
+}
+
+# Packages: those the code calls as pkg::fun(), plus dplyr (its verbs and
+# %>% are used without a prefix) and Table 1's test packages
+.CG_BASE_PKGS <- c("base", "stats", "utils", "graphics", "grDevices", "methods", "tools", "grid", "splines", "edark")
+.cg_packages <- function(lines, inc) {
+  used <- unlist(regmatches(lines, gregexpr("\\b[A-Za-z][A-Za-z0-9.]*(?=::)", lines, perl = TRUE)))
+  unique(c("dplyr", setdiff(sort(unique(used)), c(.CG_BASE_PKGS, "dplyr", "pacman")),
+           if (inc("table1")) c("cardx", "smd")))
+}
+
+
+# ── EDARK's own functions, printed from the running app ──────────────────────
+# The script does not carry copies: it carries the functions themselves,
+# deparsed from the loaded edark namespace, so it computes the numbers and
+# draws the figures exactly as the app does (§N6.14).
+
+# The names an expression uses, leaving out both sides of pkg::name - the
+# `edark` in edark::liver_tx is not the edark() function
+.cg_symbols <- function(e) {
+  if (is.symbol(e)) return(as.character(e))
+  if (is.call(e)) {
+    if (identical(e[[1L]], as.name("::")) || identical(e[[1L]], as.name(":::"))) return(character(0))
+    return(unlist(lapply(as.list(e), .cg_symbols)))
+  }
+  if (is.expression(e) || is.pairlist(e) || is.list(e)) return(unlist(lapply(as.list(e), .cg_symbols)))
+  character(0)
+}
+
+# The edark functions a script refers to by name
+.cg_entry_points <- function(lines) {
+  ns <- asNamespace("edark")
+  ids <- .cg_symbols(parse(text = lines, keep.source = FALSE))
+  ids <- intersect(unique(ids), ls(ns, all.names = TRUE))
+  ids[vapply(ids, function(n) is.function(get(n, envir = ns)), logical(1))]
+}
+
+# Names of edark objects an object refers to
+.cg_refs <- function(obj, ns_objs) {
+  nm <- if (is.function(obj)) {
+    c(all.names(body(obj)), unlist(lapply(formals(obj), function(f) if (is.language(f)) all.names(f))))
+  } else if (is.list(obj)) {
+    unlist(lapply(obj, function(x) {
+      if (is.function(x)) all.names(body(x)) else if (is.language(x)) all.names(x)
+    }))
+  }
+  intersect(unique(nm), ns_objs)
+}
+
+# Every edark object the entry points need, directly or through each other
+.cg_closure <- function(entry) {
+  ns   <- asNamespace("edark")
+  objs <- ls(ns, all.names = TRUE)
+  seen <- character(0)
+  todo <- entry
+  while (length(todo)) {
+    n <- todo[1L]
+    todo <- todo[-1L]
+    if (n %in% seen) next
+    obj <- get(n, envir = ns)
+    if (is.environment(obj)) stop("The R script cannot carry '", n, "': it is an environment.", call. = FALSE)
+    seen <- c(seen, n)
+    todo <- c(todo, setdiff(.cg_refs(obj, objs), seen))
+  }
+  seen
+}
+
+# Non-ASCII characters as \u escapes. Deparsed code keeps no comments, so they
+# can only be inside strings, where the escape means the same character.
+.cg_ascii <- function(lines) {
+  vapply(lines, function(l) {
+    cp <- utf8ToInt(enc2utf8(l))
+    if (all(cp < 128L)) return(l)
+    paste(vapply(cp, function(c) {
+      if (c < 128L) intToUtf8(c) else if (c <= 0xFFFF) sprintf("\\u%04X", c) else sprintf("\\U{%X}", c)
+    }, character(1)), collapse = "")
+  }, character(1), USE.NAMES = FALSE)
+}
+
+# edark_functions.R: constants, then functions, each as `name <- <deparse>`
+.cg_functions_file <- function(entry, time = Sys.time()) {
+  ns  <- asNamespace("edark")
+  all <- .cg_closure(entry)
+  is_fn <- vapply(all, function(n) is.function(get(n, envir = ns)), logical(1))
+  ord <- c(sort(all[!is_fn], method = "radix"), sort(all[is_fn], method = "radix"))
+  defs <- unlist(lapply(ord, function(n) {
+    d <- deparse(get(n, envir = ns), width.cutoff = 70L)
+    d[1L] <- paste(.cg_name(n), "<-", d[1L])
+    c("", d)
+  }))
+  # deparse() leaves a space after `function (...)`; strings never span lines
+  defs <- sub("[ \t]+$", "", .cg_ascii(defs))
+  if (any(grepl("shiny::", defs, fixed = TRUE))) {
+    stop("An EDARK function the R script needs calls Shiny; the script must not depend on it.", call. = FALSE)
+  }
+  lines <- c(
+    "# ==============================================================================",
+    "# EDARK functions used by analysis_script.R",
+    sprintf("# Printed from EDARK %s on %s", EDARK_VERSION, format(time, "%Y-%m-%d %H:%M")),
+    "#",
+    .cg_comment(c(
+      paste("These are the app's own functions, exactly as they ran, so the script",
+            "computes the same numbers and draws the same figures as EDARK. Names that",
+            "start with a dot are internal to EDARK. Comments are not kept (an installed",
+            "R package does not keep its source). Do not edit this file - generate the",
+            "script again instead."),
+      if (length(ord) == 0L) "None yet: the analysis script only prepares the data. EDARK's functions appear here once an Analyze step has run."
+      else sprintf("%d objects: %d constants, %d functions.", length(ord), sum(!is_fn), sum(is_fn)))),
+    "# ==============================================================================",
+    defs,
+    ""
+  )
+  list(text = paste(lines, collapse = "\n"), lines = lines, n = length(ord))
+}
+
+
+# ── Header and setup ──────────────────────────────────────────────────────────
+
+.cg_header <- function(st, plan, opts) {
+  s   <- plan$sections
+  inc <- s$title[s$status == "included"]
+  out <- s[s$status != "included", , drop = FALSE]
+  c(
+    "# ==============================================================================",
+    "# EDARK analysis script",
+    sprintf("# Generated %s by EDARK %s", format(opts$time, "%Y-%m-%d %H:%M"), EDARK_VERSION),
+    "#",
+    .cg_comment(paste("Rebuilds the working dataset from the input dataset and repeats each EDARK",
+                      "step that has been run, with the same settings and random seeds:")),
+    paste0("#   - ", inc),
+    if (nrow(out) > 0L) c("# Not included:", paste0("#   - ", out$title, " (", tolower(gsub("_", " ", out$status)), ")")),
+    "#",
+    .cg_comment(paste("Keep edark_functions.R next to this file and run this script from that",
+                      "folder, top to bottom, in a fresh R session. The analysis steps are",
+                      "written out here; every reported number, table and figure comes from",
+                      "EDARK's own functions in edark_functions.R. If this script and EDARK",
+                      "disagree, EDARK has a bug.")),
+    "# =============================================================================="
+  )
+}
+
+.cg_setup <- function(pkgs, n_functions) {
+  other <- setdiff(pkgs, "dplyr")
+  c("", .cg_fill(r"---(
+# Binary packages install without compilers (Windows and macOS)
+if (.Platform$OS.type == "windows" || Sys.info()[["sysname"]] == "Darwin") {
+  options(pkgType = "binary")
+}
+options(repos = c(
+  RSPM = "https://packagemanager.posit.co/cran/latest",
+  CRAN = "https://cloud.r-project.org"
+))
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+pacman::p_load(dplyr)
+)---"),
+    if (length(other)) c(
+      "# Called as pkg::fun(), so installed if missing but not attached (attaching",
+      "# pROC or lmerTest would mask functions from stats)",
+      sprintf("for (pkg in %s) {", .cg_chr(other)),
+      "  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)",
+      "}"),
+    "",
+    if (n_functions > 0L) c(
+      sprintf("# EDARK's own functions (%d objects), exactly as the app ran them", n_functions),
+      "source(\"edark_functions.R\")")
+    else "# No EDARK function is needed yet (edark_functions.R is empty until an Analyze step has run).")
+}
+
+
+# ── Settings as R code ────────────────────────────────────────────────────────
+
+# A value from the spec as R code: NULL, atomic vectors, (named) lists
+.cg_value <- function(x, indent = 0L, lead = 0L) {
+  w <- 78L - lead   # `lead`: characters before the value on its first line (a name)
+  if (is.null(x)) return("NULL")
+  if (is.list(x) && !is.data.frame(x)) {
+    if (length(x) == 0L) return("list()")
+    nms <- names(x)
+    labs <- vapply(seq_along(x), function(i) {
+      if (!is.null(nms) && nzchar(nms[i])) paste0(.cg_name(nms[i]), " = ") else ""
+    }, character(1))
+    # Each item on its own line at indent + 2; a value that wraps closes at
+    # that indent too, under its name
+    items <- paste0(labs, vapply(seq_along(x), function(i) .cg_value(x[[i]], indent + 2L, nchar(labs[i])), character(1)))
+    one <- paste0("list(", paste(items, collapse = ", "), ")")
+    if (nchar(one) + indent <= w && !grepl("\n", one, fixed = TRUE)) return(one)
+    pad <- strrep(" ", indent + 2L)
+    return(paste0("list(\n", paste0(pad, items, collapse = ",\n"), "\n", strrep(" ", indent), ")"))
+  }
+  if (is.factor(x)) x <- as.character(x)
+  if (is.character(x)) return(.cg_chr(x, indent, w))
+  if (is.logical(x)) {
+    if (length(x) == 0L) return("logical(0)")
+    v <- ifelse(is.na(x), "NA", ifelse(x, "TRUE", "FALSE"))
+    return(if (length(v) == 1L) v else .cg_wrap_c(v, indent, w))
+  }
+  if (is.integer(x)) {
+    if (length(x) == 0L) return("integer(0)")
+    v <- ifelse(is.na(x), "NA_integer_", paste0(x, "L"))
+    return(if (length(v) == 1L) v else .cg_wrap_c(v, indent, w))
+  }
+  if (is.numeric(x)) return(.cg_num(x, indent, w))
+  stop("The R script cannot write a value of class ", class(x)[1L], ".", call. = FALSE)
+}
+
+# The settings EDARK's functions read, from analysis_spec
+.cg_spec <- function(spec) {
+  keep <- c("variable_roles", "table1_specification", "variable_selection_specification",
+            "model_design", "purpose_specification", "validation_settings")
+  out <- spec[intersect(keep, names(spec))]
+  out[!vapply(out, is.null, logical(1))]
+}
+
+
 # ── Analyze › Setup ───────────────────────────────────────────────────────────
 
 .cg_analysis_data <- function(st, ctx) {
   spec <- st$analysis_spec
-  vr   <- spec$variable_roles
   ps   <- spec$purpose_specification %||% .default_purpose_specification()
-  exposure <- vr$exposure_variable
-  refs <- vr$reference_levels %||% list()
   out <- c(
     "# Analyze works on a frozen copy of the working dataset with a row ID added.",
     "analysis_data <- working_data",
     "analysis_data$.edark_row_id <- seq_len(nrow(analysis_data))",
     "",
-    "# Roles (Step 1)",
-    sprintf("outcome  <- %s", .cg_esc(vr$outcome_variable %||% NA_character_)),
-    sprintf("exposure <- %s", if (is.null(exposure) || !nzchar(exposure)) "NULL" else .cg_esc(exposure)),
-    sprintf("reference_levels <- %s", .cg_named_chr(refs))
+    "# The settings chosen in EDARK (its analysis_spec): roles, Table 1, variable",
+    "# selection, model, purpose and validation. EDARK's functions below read them.",
+    paste("spec <-", .cg_value(.cg_spec(spec), 0L)),
+    "",
+    "outcome  <- spec$variable_roles$outcome_variable",
+    "exposure <- spec$variable_roles$exposure_variable",
+    "reference_levels <- spec$variable_roles$reference_levels"
   )
   sp <- analysis_split(spec)
   purpose <- if (identical(ps$model_purpose, "prediction")) "prediction" else "association"
@@ -675,65 +793,21 @@ test_data   <- analysis_data[in_test, , drop = FALSE]
 # ── Table 1 ───────────────────────────────────────────────────────────────────
 
 .cg_table1 <- function(st, ctx) {
-  spec <- st$analysis_spec
-  vr   <- spec$variable_roles
-  res  <- st$analysis_result
-  data <- st$analysis_data
-  t1v <- setdiff(vr$table1_variables, ".edark_row_id")
-  t1v <- intersect(names(data), t1v)
-  pri <- c(vr$exposure_variable, vr$outcome_variable)
-  pri <- intersect(pri[nzchar(pri)], t1v)
-  t1v <- c(pri, setdiff(t1v, pri))
-
-  out <- c(.cg_comment("Every row of the analysis dataset, including any test rows. Variables: exposure, outcome, then the rest in dataset order."),
-           sprintf("table1_vars <- %s", .cg_chr(t1v)))
-
-  .steps <- function(tbl) names(tbl$call_list %||% list())
-  tabs <- list(overall = res$result_tables$table1_overall,
-               by_exposure = res$result_tables$table1_by_exposure,
-               by_outcome = res$result_tables$table1_by_outcome)
-  if (!is.null(tabs$overall)) {
-    out <- c(out, "", "# Whole cohort",
-             "table1_overall <- tbl_summary(analysis_data[, table1_vars, drop = FALSE], missing = \"no\") %>%",
-             "  bold_labels()",
-             "table1_overall")
-  }
-  for (k in c("by_exposure", "by_outcome")) {
-    tbl <- tabs[[k]]
-    if (is.null(tbl)) next
-    by  <- if (k == "by_exposure") vr$exposure_variable else vr$outcome_variable
-    st_ <- .steps(tbl)
-    vars <- intersect(unique(c(t1v, by)), names(data))
-    obj <- paste0("table1_", k)
-    chain <- c(
-      sprintf("%s <- tbl_summary(analysis_data[, %s, drop = FALSE],",
-              obj, if (identical(vars, t1v)) "table1_vars" else sprintf("c(table1_vars, %s)", .cg_esc(by))),
-      sprintf("                         by = %s, missing = \"no\") %%>%%", .cg_esc(by)),
-      "  add_overall() %>%",
-      "  bold_labels()"
-    )
-    if ("add_p" %in% st_) {
-      chain[length(chain)] <- paste(chain[length(chain)], "%>%")
-      chain <- c(chain,
-        "  # Kruskal-Wallis for numbers; chi-squared, or Fisher's exact test when an",
-        "  # expected count is below 5, for categories",
-        "  add_p(",
-        "    test = list(all_continuous() ~ \"kruskal.test\", all_categorical() ~ categorical_test),",
-        "    pvalue_fun = function(x) ifelse(is.na(x), NA_character_, format_p(x))",
-        "  )")
-    }
-    if ("add_difference" %in% st_) {
-      chain[length(chain)] <- paste(chain[length(chain)], "%>%")
-      chain <- c(chain, "  add_difference(test = list(all_continuous() ~ \"smd\", all_categorical() ~ \"smd\"))")
-    }
-    if ("modify_spanning_header" %in% st_) {
-      chain[length(chain)] <- paste(chain[length(chain)], "%>%")
-      chain <- c(chain, sprintf("  modify_spanning_header(all_stat_cols(stat_0 = FALSE) ~ %s)",
-                                .cg_esc(paste0("**", by, "**"))))
-    }
-    out <- c(out, "", sprintf("# By %s", if (k == "by_exposure") "exposure" else "outcome"), chain, obj)
-  }
-  out
+  rt <- st$analysis_result$result_tables
+  t1 <- st$analysis_spec$table1_specification
+  .stat <- function(p, smd) if (isTRUE(smd)) "standardised mean differences" else if (isTRUE(p)) "p-values" else "no test"
+  made <- c(
+    if (!is.null(rt$table1_overall)) "table1$overall",
+    if (!is.null(rt$table1_by_exposure)) "table1$by_exposure",
+    if (!is.null(rt$table1_by_outcome)) "table1$by_outcome")
+  c(.cg_comment(c(
+      "Every row of the analysis dataset, including any test rows; exposure, outcome, then the rest in dataset order.",
+      if (!is.null(rt$table1_by_exposure))
+        sprintf("By exposure: %s.", .stat(t1$include_pvalues_exposure, t1$include_smd_exposure)),
+      if (!is.null(rt$table1_by_outcome))
+        sprintf("By outcome: %s.", .stat(t1$include_pvalues_outcome, t1$include_smd_outcome)))),
+    "table1 <- build_table1(analysis_data, spec)",
+    made)
 }
 
 
@@ -755,7 +829,7 @@ test_data   <- analysis_data[in_test, , drop = FALSE]
   fit_fn <- if (binary) "glm(%s, data = %s, family = binomial())" else "lm(%s, data = %s)"
 
   out <- c(.cg_comment(paste("Run on the rows models are built from", if (!is.null(analysis_split(spec))) "(the training set)." else "(every row).")),
-           sprintf("candidates <- %s", .cg_chr(pool)),
+           "candidates <- spec$variable_roles$univariable_test_pool",
            if (inc("stepwise") || inc("lasso")) c(
              "# Stepwise and LASSO use the rows complete for all of these",
              "selection_vars <- intersect(c(outcome, exposure, candidates), names(model_data))"))
@@ -763,19 +837,17 @@ test_data   <- analysis_data[in_test, , drop = FALSE]
   if (inc("univariable")) {
     ord <- intersect(names(md), pool)
     if (length(exposure) && exposure %in% ord) ord <- c(exposure, setdiff(ord, exposure))
-    thr <- vs$univariable_p_threshold %||% 0.2
     out <- c(out, "", .cg_fill(r"---(
 # Univariable screen: outcome ~ candidate, one {{kind}} model per candidate, on
 # the rows complete for both. {{measure}}
-univariable_threshold <- {{thr}}
-screen_data <- set_reference_levels(model_data, reference_levels)
+screen_data <- apply_reference_levels(model_data, reference_levels)
 univariable <- do.call(rbind, lapply(candidates, function(v) {
   rows <- screen_data[complete.cases(screen_data[, c(outcome, v)]), , drop = FALSE]
-  if (nrow(rows) == 0L || !can_model(rows[[v]])) return(NULL)
-  rows <- droplevels_cols(rows, v)
+  if (nrow(rows) == 0L || nrow(.partition_modelable(rows, v)$excluded) > 0L) return(NULL)
+  rows <- .droplevels_cols(rows, v)
   fit <- tryCatch({{fit}}, error = function(e) NULL)
   if (is.null(fit)) return(NULL)
-  ct <- coef_table(fit, rows)
+  ct <- edark_coef_table(fit, rows)
   ct <- ct[ct$term != "(Intercept)", , drop = FALSE]
   data.frame(variable = v, term = ct$term, estimate = ct$effect, conf.low = ct$effect.low,
              conf.high = ct$effect.high, p.value = ct$p.value, stringsAsFactors = FALSE)
@@ -784,12 +856,13 @@ univariable <- do.call(rbind, lapply(candidates, function(v) {
 screen_order <- {{ord}}
 univariable <- univariable[order(match(univariable$variable, screen_order), univariable$term,
                                  method = "radix"), , drop = FALSE]
-univariable$suggested <- !is.na(univariable$p.value) & univariable$p.value < univariable_threshold
+univariable$suggested <- !is.na(univariable$p.value) &
+  univariable$p.value < spec$variable_selection_specification$univariable_p_threshold
 rownames(univariable) <- NULL
 univariable
 )---", kind = if (binary) "logistic" else "linear",
     measure = if (binary) "Estimates are odds ratios." else "Estimates are regression coefficients.",
-    thr = .cg_num(thr), fit = sprintf(fit_fn, "as.formula(paste(outcome, \"~\", v))", "rows"),
+    fit = sprintf(fit_fn, "as.formula(paste(outcome, \"~\", v))", "rows"),
     ord = .cg_chr(ord)))
   }
 
@@ -801,12 +874,12 @@ univariable
                           if (length(exposure)) ", the exposure" else "",
                           format(r$n_used, big.mark = ","), format(r$n_total, big.mark = ","))),
       sprintf("%s_data <- model_data[complete.cases(model_data[, selection_vars]), , drop = FALSE]", obj),
-      sprintf("%s_data <- set_reference_levels(%s_data, reference_levels)", obj, obj),
+      sprintf("%s_data <- apply_reference_levels(%s_data, reference_levels)", obj, obj),
       if (is.data.frame(ex) && nrow(ex) > 0L)
         .cg_comment(paste0("Left out - cannot be modelled on these rows: ",
                            paste(sprintf("%s (%s)", ex$variable, ex$reason), collapse = "; "), ".")),
       sprintf("%s_candidates <- %s", obj, .cg_chr(keep)),
-      sprintf("%s_data <- droplevels_cols(%s_data, c(%s_candidates, exposure))", obj, obj, obj))
+      sprintf("%s_data <- .droplevels_cols(%s_data, c(%s_candidates, exposure))", obj, obj, obj))
   }
   .commented <- function(lines, why) c(.cg_comment(why), paste0("# ", .cg_lines(lines)))
 
@@ -821,8 +894,9 @@ univariable
              else paste(.cg_name(outcome), "~", lower)
     code <- c(
       .sel_prep(s, "stepwise"),
-      sprintf("stepwise_start <- %s", sprintf(fit_fn, start, "stepwise_data")),
-      "stepwise_fit <- step(",
+      sprintf("stepwise_start <- %s", sub(", data = ", ",\n                      data = ",
+                                          sprintf(fit_fn, start, "stepwise_data"), fixed = TRUE)),
+      "stepwise_fit <- stats::step(",
       "  stepwise_start,",
       sprintf("  scope = list(lower = ~ %s,", lower),
       sprintf("               upper = ~ %s),", upper),
@@ -832,9 +906,9 @@ univariable
       "stepwise_selected <- intersect(stepwise_candidates, attr(terms(stepwise_fit), \"term.labels\"))",
       "stepwise_selected"
     )
-    head <- sprintf("# Stepwise selection: %s, by %s.%s", dir, crit,
+    head <- sprintf("Stepwise selection: %s, by %s.%s", dir, crit,
                     if (length(exposure)) " The exposure is held in every model, so candidates are chosen for what they add alongside it." else "")
-    out <- c(out, "", .cg_comment(sub("^# ", "", head)),
+    out <- c(out, "", .cg_comment(head),
              if (!is.null(s$error)) .commented(code, paste("EDARK reported an error for this run, so the code is commented out:", s$error))
              else code)
   }
@@ -871,53 +945,13 @@ univariable
   }
 
   if (inc("collinearity")) {
-    cd <- md[, intersect(pool, names(md)), drop = FALSE]
-    nv <- names(cd)[vapply(cd, is.numeric, logical(1))]
-    fv <- names(cd)[vapply(cd, is.factor, logical(1))]
-    out <- c(out, "", .cg_comment("Collinearity between candidates: Pearson r for numeric pairs, Cramer's V for factor pairs; pairs above 0.7 are flagged."),
-             "collin_data <- model_data[, intersect(candidates, names(model_data)), drop = FALSE]")
-    if (length(nv) >= 2L) {
-      out <- c(out, sprintf("cor_matrix <- cor(collin_data[, %s, drop = FALSE], use = \"pairwise.complete.obs\")",
-                            .cg_chr(nv, 2L)))
-    }
-    if (length(fv) >= 2L) {
-      out <- c(out, .cg_fill(r"---(
-factor_vars <- {{fv}}
-cramers_v_matrix <- matrix(NA_real_, length(factor_vars), length(factor_vars),
-                           dimnames = list(factor_vars, factor_vars))
-diag(cramers_v_matrix) <- 1
-for (i in seq_along(factor_vars)) for (j in seq_along(factor_vars)) {
-  if (j <= i) next
-  tb <- table(collin_data[[factor_vars[i]]], collin_data[[factor_vars[j]]])
-  chi <- suppressWarnings(chisq.test(tb, correct = FALSE))
-  k <- min(dim(tb))
-  v <- if (k <= 1L || sum(tb) == 0L) NA_real_ else sqrt(unname(chi$statistic) / (sum(tb) * (k - 1L)))
-  cramers_v_matrix[i, j] <- cramers_v_matrix[j, i] <- v
-}
-)---", fv = .cg_chr(fv)))
-    }
-    if (length(nv) >= 2L || length(fv) >= 2L) {
-      out <- c(out, .cg_fill(r"---(
-flagged_pairs <- do.call(rbind, lapply(list({{mats}}), function(m) {
-  idx <- which(upper.tri(m) & !is.na(m) & abs(m) > 0.7, arr.ind = TRUE)
-  data.frame(var1 = rownames(m)[idx[, 1]], var2 = colnames(m)[idx[, 2]], value = round(m[idx], 3))
-}))
-flagged_pairs
-)---", mats = paste(c(if (length(nv) >= 2L) "cor_matrix", if (length(fv) >= 2L) "cramers_v_matrix"), collapse = ", ")))
-    } else {
-      out <- c(out, "# Fewer than two numeric and two factor candidates: nothing to compare.")
-    }
-    if (ctx$figures && length(nv) >= 2L) {
-      out <- c(out, .cg_fill(r"---(
-ggplot(as.data.frame(as.table(cor_matrix)), aes(Var1, Var2, fill = Freq)) +
-  geom_tile(colour = "white") +
-  geom_text(aes(label = round(Freq, 2)), size = 3) +
-  scale_fill_gradient2(low = "#2166ac", mid = "white", high = "#d6604d", limits = c(-1, 1), name = "r") +
-  labs(title = "Pearson correlation matrix", x = NULL, y = NULL) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)---"))
-    }
+    cp <- res$result_plots$collinearity_plots
+    out <- c(out, "",
+             .cg_comment("Collinearity between candidates: Pearson r for numeric pairs, Cramer's V for factor pairs; pairs above 0.7 are flagged."),
+             "collinearity <- compute_collinearity(model_data, candidates)",
+             "collinearity$flagged_pairs",
+             if (ctx$figures && !is.null(cp$cor_matrix)) "print(.plot_correlation_heatmap(collinearity$cor_matrix))",
+             if (ctx$figures && !is.null(cp$cramers_v_matrix)) "print(.plot_cramers_heatmap(collinearity$cramers_v_mat))")
   }
   out
 }
@@ -926,17 +960,10 @@ ggplot(as.data.frame(as.table(cor_matrix)), aes(Var1, Var2, fill = Freq)) +
 # ── Model ─────────────────────────────────────────────────────────────────────
 
 .cg_model <- function(st, ctx) {
-  res  <- st$analysis_result
-  snap <- res$specification_snapshot
-  vr   <- snap$variable_roles
-  rs   <- res$run_status
-  mt   <- ctx$model_type
-  refs <- vr$reference_levels %||% list()
-  refs <- refs[intersect(names(refs), c(ctx$outcome, ctx$preds))]
-
-  ev   <- rs$outcome_event
-
-  out <- c(
+  rs <- st$analysis_result$run_status
+  mt <- ctx$model_type
+  ev <- rs$outcome_event
+  c(
     sprintf("# %s on %s of %s rows%s.", .ANALYSIS_MODEL_LABELS[[mt]], format(rs$n_used, big.mark = ","),
             format(rs$n_total, big.mark = ","), if (!is.null(ctx$split)) " of the training set" else ""),
     if (!is.null(ev)) sprintf("# Modelling %s = %s (vs %s).", ev$variable, ev$event, ev$reference),
@@ -947,179 +974,84 @@ ggplot(as.data.frame(as.table(cor_matrix)), aes(Var1, Var2, fill = Freq)) +
     "",
     .cg_comment(paste("The model's rows: complete for every model variable, ordered factors made plain",
                       "factors, reference levels set, unused levels dropped.")),
-    "model_rows <- prepare_model_rows(model_data, outcome, predictors, clusters,",
-    sprintf("                                 reference_levels = %s)", .cg_named_chr(refs, 33L)),
+    "model_rows <- .prepare_model_rows(model_data, outcome, predictors, clusters, reference_levels)",
     "",
     sprintf("model_formula <- %s", .cg_formula(ctx$outcome, ctx$preds, ctx$clusters, start = 17L)),
     sprintf("fit_model <- function(formula, data) %s", .cg_fit_call(mt, "formula", "data", ctx$optimizer)),
     "model <- fit_model(model_formula, model_rows)",
     "summary(model)",
     "",
-    sprintf("# %s", edark_inference_note(mt)),
-    "model_coefficients <- coef_table(model, model_rows)",
+    .cg_comment(edark_inference_note(mt)),
+    "model_coefficients <- edark_coef_table(model, model_rows)",
     "model_coefficients",
+    sprintf("model_fit_statistics <- .fit_statistics(model, %s, model_rows, outcome, clusters)", .cg_esc(mt)),
+    "model_fit_statistics",
     "",
-    sprintf("model_fit_statistics <- fit_statistics(model, %s, model_rows, outcome)", .cg_esc(mt)),
-    "model_fit_statistics"
+    "# What EDARK keeps about the fit (its analysis_result); its output builders read it",
+    "model_result <- list(",
+    "  specification_snapshot = spec,",
+    "  fitted_models = list(primary_model = model),",
+    "  inference_summary = list(",
+    "    coefficients     = model_coefficients,",
+    "    fit_statistics   = model_fit_statistics,",
+    "    predicted_values = data.frame(.edark_row_id = model_rows$.edark_row_id)",
+    "  ),",
+    "  run_status = list(",
+    "    n_used = nrow(model_rows), n_total = nrow(model_data),",
+    "    outcome_event = if (logistic) list(variable = outcome, event = levels(model_rows[[outcome]])[2L],",
+    "                                       reference = levels(model_rows[[outcome]])[1L]),",
+    "    reference_levels = Filter(Negate(is.null), sapply(predictors, function(v) {",
+    "      if (is.factor(model_rows[[v]])) levels(model_rows[[v]])[1L]",
+    "    }, simplify = FALSE))",
+    "  )",
+    ")"
   )
-  out
 }
 
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
 .cg_diagnostics <- function(st, ctx) {
-  dg <- ctx$diag
-  ck <- dg$checks
+  ck <- ctx$diag$checks
   mt <- ctx$model_type
+  lg <- "logistic"
   out <- c(sprintf("# Checks run: %s", paste(ck, collapse = ", ")),
+           "mf <- model.frame(model)   # the model's own rows",
+           "row_ids <- model_rows$.edark_row_id",
            "diagnostics <- list()",
-           "row_ids <- model_rows$.edark_row_id")
-
-  if ("residuals" %in% ck) {
-    if (ctx$logit) {
-      out <- c(out, "", .cg_fill(r"---(
-# Residuals: binned response residuals (y - p). About 95% of bins should include 0.
-binned <- as.data.frame(performance::binned_residuals(model, residuals = "response"))
-diagnostics$binned_inside <- mean(binned$group == "yes", na.rm = TRUE)
-)---"), if (ctx$figures) .cg_fill(r"---(
-ggplot(binned, aes(xbar, ybar, colour = group == "yes")) +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey55") +
-  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0) +
-  geom_point(size = 2) +
-  scale_colour_manual(values = c(`TRUE` = "#2c7be5", `FALSE` = "#d6604d"),
-                      labels = c(`TRUE` = "Includes 0", `FALSE` = "Excludes 0"), name = NULL) +
-  labs(title = "Binned residuals", x = "Predicted probability", y = "Average residual") +
-  theme_minimal()
-)---"))
-    } else {
-      out <- c(out, "", "# Residuals",
-               "resid_df <- data.frame(fitted = as.numeric(fitted(model)), resid = as.numeric(residuals(model)))",
-               if (mt == "linear") "resid_df$std <- as.numeric(rstandard(model))"
-               else "resid_df$std <- resid_df$resid / sigma(model)   # conditional residuals",
-               if (mt == "linear") c("diagnostics$breusch_pagan <- lmtest::bptest(model)   # constant variance",
-                                     "diagnostics$breusch_pagan"),
-               if (ctx$figures) .cg_fill(r"---(
-ggplot(resid_df, aes(fitted, resid)) +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey55") +
-  geom_point(alpha = 0.45, colour = "#2c7be5") +
-  geom_smooth(method = "loess", formula = y ~ x, se = FALSE, colour = "#d6604d") +
-  labs(title = "Residuals vs fitted", x = "Fitted value", y = "Residual") +
-  theme_minimal()
-ggplot(resid_df, aes(sample = std)) +
-  stat_qq(alpha = 0.55, colour = "#2c7be5") +
-  geom_abline(slope = 1, intercept = 0, colour = "#d6604d") +
-  labs(title = "Normal Q-Q (standardised residuals)", x = "Theoretical quantile", y = "Sample quantile") +
-  theme_minimal()
-ggplot(resid_df, aes(fitted, sqrt(abs(std)))) +
-  geom_point(alpha = 0.45, colour = "#2c7be5") +
-  geom_smooth(method = "loess", formula = y ~ x, se = FALSE, colour = "#d6604d") +
-  labs(title = "Scale-location", x = "Fitted value", y = "sqrt(|standardised residual|)") +
-  theme_minimal()
-)---"))
-    }
+           "diagnostics$sample <- .diag_sample(spec, model_data, mf, outcome, logistic, mixed)")
+  .chk <- function(title, call, key, plots = TRUE, guard = FALSE) {
+    c("", paste("#", title),
+      sprintf("diagnostics$%s <- %s", key, call),
+      if (plots) {
+        p <- .cg_print(ctx, sprintf("diagnostics$%s$plots", key))
+        if (!is.null(p) && guard) sprintf("if (is.list(diagnostics$%s)) %s", key, p) else p
+      },
+      if (!plots) sprintf("diagnostics$%s", key))
   }
-
-  if ("linearity" %in% ck) {
-    terms <- dg$linearity$terms
-    if (length(terms) == 0L) {
-      out <- c(out, "", "# Linearity: the model has no continuous predictor, so there is nothing to check.")
-    } else if (ctx$logit) {
-      out <- c(out, "", "# Linearity: binned residuals against each continuous predictor",
-               sprintf("linearity_terms <- %s", .cg_chr(terms)),
-               "linearity <- do.call(rbind, lapply(linearity_terms, function(v) {",
-               "  d <- as.data.frame(performance::binned_residuals(model, term = v, residuals = \"response\"))",
-               "  d$term <- v",
-               "  d",
-               "}))",
-               "diagnostics$linearity_inside <- tapply(linearity$group == \"yes\", linearity$term, mean)",
-               "diagnostics$linearity_inside",
-               if (ctx$figures) c(
-                 "ggplot(linearity, aes(xbar, ybar, colour = group == \"yes\")) +",
-                 "  geom_hline(yintercept = 0, linetype = \"dashed\", colour = \"grey55\") +",
-                 "  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0) +",
-                 "  geom_point(size = 1.8) +",
-                 "  facet_wrap(~ term, scales = \"free_x\") +",
-                 "  scale_colour_manual(values = c(`TRUE` = \"#2c7be5\", `FALSE` = \"#d6604d\"), guide = \"none\") +",
-                 "  labs(title = \"Binned residuals vs each continuous predictor\", x = NULL, y = \"Average residual\") +",
-                 "  theme_minimal()"))
-    } else {
-      out <- c(out, "", "# Linearity: residuals against each continuous predictor",
-               sprintf("linearity_terms <- %s", .cg_chr(terms)),
-               if (ctx$figures) c(
-                 "mf <- model.frame(model)",
-                 "linearity <- do.call(rbind, lapply(linearity_terms, function(v) {",
-                 "  data.frame(term = v, x = as.numeric(mf[[v]]), resid = as.numeric(residuals(model)))",
-                 "}))",
-                 "ggplot(linearity, aes(x, resid)) +",
-                 "  geom_hline(yintercept = 0, linetype = \"dashed\", colour = \"grey55\") +",
-                 "  geom_point(alpha = 0.35, colour = \"#2c7be5\") +",
-                 "  geom_smooth(method = \"loess\", formula = y ~ x, se = FALSE, colour = \"#d6604d\") +",
-                 "  facet_wrap(~ term, scales = \"free_x\") +",
-                 "  labs(title = \"Residuals vs each continuous predictor\", x = NULL, y = \"Residual\") +",
-                 "  theme_minimal()")
-               else "# (a figure only - turn on figures to include its code)")
-    }
-  }
-
-  if ("influence" %in% ck) {
-    out <- c(out, "", .cg_fill(r"---(
-# Influence: Cook's distance and leverage; the cut-off is 4 / n
-influence <- data.frame(.edark_row_id = row_ids,
-                        cooks     = as.numeric(cooks.distance(model)),
-                        leverage  = as.numeric(hatvalues(model)),
-                        std_resid = as.numeric(rstandard(model)))
-diagnostics$cooks_threshold <- 4 / nrow(influence)
-diagnostics$cooks_max <- max(influence$cooks, na.rm = TRUE)
-diagnostics$n_above <- sum(influence$cooks > diagnostics$cooks_threshold, na.rm = TRUE)
-most_influential <- head(influence[order(-influence$cooks), , drop = FALSE], 10)
-most_influential
-)---"), if (ctx$figures) .cg_fill(r"---(
-ggplot(influence, aes(seq_along(cooks), cooks, colour = cooks > diagnostics$cooks_threshold)) +
-  geom_segment(aes(xend = seq_along(cooks), yend = 0)) +
-  geom_hline(yintercept = diagnostics$cooks_threshold, linetype = "dashed", colour = "#d6604d") +
-  scale_colour_manual(values = c(`FALSE` = "#2c7be5", `TRUE` = "#d6604d"), guide = "none") +
-  labs(title = "Cook's distance", x = "Observation", y = "Cook's distance") +
-  theme_minimal()
-)---"))
-  }
-
-  if ("vif" %in% ck) {
-    if (is.data.frame(dg$vif)) {
-      out <- c(out, "", "# Collinearity: variance inflation factors (5 to 10 moderate, above 10 high)",
-               "vif <- as.data.frame(performance::check_collinearity(model))",
-               "vif[, c(\"Term\", \"VIF\")]")
-    } else {
-      out <- c(out, "", "# Collinearity: VIF needs at least two predictors, so it is not computed.")
-    }
-  }
-
-  if ("separation" %in% ck) {
-    out <- c(out, "", .cg_fill(r"---(
-# Separation: does a predictor perfectly predict the outcome?{{note}}
-separation <- glm({{fmla}}, data = model.frame(model), family = binomial(),
-                  method = detectseparation::detect_separation)
-diagnostics$separation <- isTRUE(separation$outcome)
-separation
-)---", note = if (ctx$mixed) " Checked on the fixed effects." else "",
-    fmla = if (ctx$mixed) "formula(model, fixed.only = TRUE)" else "formula(model)"))
-  }
-
-  if ("random_effects" %in% ck) {
-    out <- c(out, "", .cg_fill(r"---(
-# Random effects: variance, SD and ICC per cluster variable. The residual
-# variance is {{resid}}.
-vc <- as.data.frame(lme4::VarCorr(model))
-vc <- vc[is.na(vc$var2) & vc$grp != "Residual", , drop = FALSE]
-residual_variance <- {{resid_code}}
-random_effects <- data.frame(group = vc$grp, variance = vc$vcov, sd = vc$sdcor,
-                             icc = vc$vcov / (sum(vc$vcov) + residual_variance))
-random_effects$n_clusters <- vapply(random_effects$group, function(g) length(unique(model_rows[[g]])), integer(1))
-random_effects
-)---", resid = if (ctx$logit) "pi^2 / 3 (the latent scale of a logistic model)" else "the model's sigma^2",
-    resid_code = if (ctx$logit) "pi^2 / 3" else "sigma(model)^2"))
-  }
-  c(out, "diagnostics")
+  if ("residuals" %in% ck) out <- c(out, .chk(
+    if (ctx$logit) "Residuals: binned response residuals (about 95% of bins should include 0)"
+    else if (mt == "linear") "Residuals: vs fitted, Q-Q, scale-location and the Breusch-Pagan test"
+    else "Residuals: conditional residuals vs fitted, Q-Q and scale-location",
+    sprintf(".diag_residuals(model, %s)", .cg_esc(mt)), "residuals"))
+  if ("linearity" %in% ck) out <- c(out, .chk(
+    "Linearity: residuals against each continuous predictor (a note when there is none)",
+    ".diag_linearity(model, mf, spec, logistic)", "linearity", guard = TRUE))
+  if ("influence" %in% ck) out <- c(out, .chk(
+    "Influence: Cook's distance and leverage; the cut-off is 4 / n",
+    ".diag_influence(model, mf, row_ids, logistic)", "influence"),
+    "diagnostics$influence$top")
+  if ("vif" %in% ck) out <- c(out, .chk(
+    "Collinearity: variance inflation factors (5 to 10 moderate, above 10 high)",
+    ".diag_vif(model)", "vif", plots = FALSE))
+  if ("separation" %in% ck) out <- c(out, .chk(
+    paste0("Separation: does a predictor perfectly predict the outcome?", if (ctx$mixed) " (fixed effects)" else ""),
+    ".diag_separation(model, mf, mixed)", "separation", plots = FALSE))
+  if ("random_effects" %in% ck) out <- c(out, .chk(
+    "Random effects: variance, SD and ICC per cluster variable, cluster sizes",
+    ".diag_random_effects(model, mf, logistic)", "random_effects"),
+    "diagnostics$random_effects$components")
+  out
 }
 
 
@@ -1129,220 +1061,126 @@ random_effects
   pf <- ctx$perf
   vl <- pf$validation
   mt <- ctx$model_type
+  vl_list <- vl[intersect(c("method", "cv_folds", "cv_repeats", "bootstrap_reps", "seed"), names(vl))]
   out <- c(
     sprintf("# Measures: %s. Validation: %s.", paste(pf$checks, collapse = ", "),
             tolower(.PERF_METHOD_LABELS[[vl$method]])),
     if (ctx$mixed) "# Mixed models predict from the fixed effects alone (re.form = NA), as for a patient from an unseen cluster.",
-    sprintf("performance_checks <- %s", .cg_chr(pf$checks)),
     "mf <- model.frame(model)   # the model's own rows",
-    "y  <- mf[[outcome]]",
+    "",
+    "# What EDARK's performance functions work on",
+    "job <- list(",
+    sprintf("  run_at = Sys.time(), model_type = %s, checks = %s,", .cg_esc(mt), .cg_chr(pf$checks, 2L)),
+    sprintf("  basis = %s, split = NULL, sets = list(), plots = list(),", .cg_esc(pf$basis %||% if (ctx$mixed) "marginal" else "fixed")),
+    sprintf("  validation = %s,", .cg_value(vl_list, 15L)),
+    sprintf("  outcome = outcome, logit = logistic, mixed = mixed, optimizer = %s,", .cg_esc(ctx$optimizer)),
+    "  preds = predictors, clusters = intersect(clusters, names(mf)), formula = model_formula, mf = mf,",
+    "  step = 0L, n_steps = 0L, done = TRUE, n_failed = 0L, n_warned = 0L,",
+    "  fail_reasons = character(0), warn_reasons = character(0),",
+    "  msgs = data.frame(level = character(0), message = character(0), stringsAsFactors = FALSE)",
+    ")",
+    "note <- function(level, text) job$msgs[nrow(job$msgs) + 1L, ] <<- list(level, text)",
     "",
     "# Apparent: the rows the model was fitted to - always optimistic",
-    "pred_apparent <- predict_response(model, mixed = mixed)",
-    "apparent <- performance_measures(pred_apparent, y, logistic, performance_checks, with_slope = FALSE)"
+    "job$pred_apparent <- .perf_predict(model, NULL, mixed)",
+    "apparent <- .perf_measures(job$pred_apparent, mf[[outcome]], logistic, job$checks, outcome, \"apparent\",",
+    "                           with_slope = FALSE)",
+    "job$sets$apparent  <- apparent$values",
+    "job$plots$apparent <- apparent$plots"
   )
 
   if (identical(vl$method, "split")) {
     out <- c(out, "", .cg_fill(r"---(
 # Test set: prepared like the model's rows; rows with a factor level the model
 # never saw cannot be predicted and are dropped
-test_rows <- prepare_model_rows(test_data, outcome, predictors, character(0), reference_levels)
-unseen <- rep(FALSE, nrow(test_rows))
-for (v in c(outcome, predictors)) {
-  if (is.factor(mf[[v]])) unseen <- unseen | !as.character(test_rows[[v]]) %in% levels(mf[[v]])
+job$split <- list(variable = {{var}}, training_level = {{lvl}},
+                  test_levels = sort(unique(split_value[in_test])))
+test_rows <- .perf_test_rows(model, spec, test_data, outcome, logistic, mixed, note)
+if (!is.null(test_rows)) {
+  test <- .perf_measures(.perf_predict(model, test_rows, mixed), test_rows[[outcome]], logistic,
+                         job$checks, outcome, "test", with_slope = TRUE)
+  job$sets$test  <- test$values
+  job$plots$test <- test$plots
 }
-test_rows <- test_rows[!unseen, , drop = FALSE]
-for (v in c(outcome, predictors)) {
-  if (is.factor(mf[[v]])) test_rows[[v]] <- factor(as.character(test_rows[[v]]), levels = levels(mf[[v]]))
-}
-pred_test <- predict_response(model, test_rows, mixed)
-test <- performance_measures(pred_test, test_rows[[outcome]], logistic, performance_checks, with_slope = TRUE)
-)---"))
+)---", var = .cg_esc(ctx$split$variable), lvl = .cg_esc(ctx$split$training_level)))
   }
 
-  if (vl$method %in% c("cv", "bootstrap")) {
-    out <- c(out, "",
-             "# Resampling refits the model with the same covariates (the variable selection is not repeated).",
-             sprintf("refit_model <- function(formula, data) %s", .cg_fit_call(mt, "formula", "data", ctx$optimizer, satterthwaite = FALSE)),
-             sprintf("resample_clusters <- %s%s", .cg_chr(ctx$clusters),
-                     if (length(ctx$clusters) > 0L) "   # whole clusters of the first are resampled" else ""))
-  }
-
+  multi <- ctx$mixed && length(ctx$clusters) > 1L
   if (identical(vl$method, "cv")) {
     out <- c(out, "", .cg_fill(r"---(
-# Cross-validation: {{k}} folds x {{reps}} repeats. Each fold's model predicts the rows it
-# left out; measures are computed per repeat on the pooled out-of-fold predictions and
-# averaged over repeats.
+# Cross-validation: {{k}} folds x {{reps}} repeats, every fold drawn now with the seed
+# EDARK used. Each step refits the model without one fold (same covariates) and
+# predicts the rows left out; measures are computed per repeat on the pooled
+# out-of-fold predictions and averaged over repeats.
 set.seed({{seed}})
-cv_plan <- cv_folds(mf, {{k}}, {{reps}})
-oof <- matrix(NA_real_, nrow(mf), {{reps}})
-cv_failed <- 0L
-for (r in seq_len({{reps}})) {
-  for (f in seq_len(cv_plan$k)) {
-    out  <- cv_plan$folds[[r]] == f
-    fit  <- refit(mf[!out, , drop = FALSE])
-    left <- mf[out, , drop = FALSE]
-    ok   <- if (!is.null(fit)) predictable(fit$data, left) else FALSE
-    p    <- if (any(ok)) tryCatch(predict_response(fit$model, align_levels(fit$data, left[ok, , drop = FALSE]), mixed),
-                                  error = function(e) NULL)
-    if (is.null(p)) { cv_failed <- cv_failed + 1L; next }
-    oof[which(out)[ok], r] <- p
-  }
-}
-cv_scores <- t(vapply(seq_len(ncol(oof)), function(r) performance_scores(oof[, r], y, logistic),
-                      numeric(length(score_names))))
-cv_keys <- performance_keys(performance_checks, logistic)
-cv <- list(n = as.integer(round(mean(colSums(is.finite(oof))))), folds = cv_plan$k, failed = cv_failed,
-           mean = colMeans(cv_scores[, cv_keys, drop = FALSE], na.rm = TRUE),
-           sd   = if (nrow(cv_scores) > 1L) apply(cv_scores[, cv_keys, drop = FALSE], 2, sd, na.rm = TRUE))
-cv
-)---", k = vl$cv_folds, reps = vl$cv_repeats, seed = vl$seed))
+job$plan <- .perf_cv_plan(mf, {{k}}, {{reps}}, outcome, logistic, job$clusters, note)
+job$n_steps <- nrow(job$plan$steps)
+job$validation$cv_folds <- job$plan$k
+job$oof <- matrix(NA_real_, nrow(mf), job$plan$repeats)
+)---", k = vl$cv_folds, reps = vl$cv_repeats, seed = vl$seed),
+      if (multi) "note(\"note\", sprintf(\"Resampling is grouped by %s, the first cluster variable.\", job$clusters[1L]))",
+      "for (i in seq_len(job$n_steps)) job <- .perf_cv_step(job, i)")
   }
 
   if (identical(vl$method, "bootstrap")) {
-    cal <- "calibration" %in% pf$checks
     out <- c(out, "", .cg_fill(r"---(
-# Bootstrap optimism correction (Harrell): each resample's model is scored on the
-# resample and on the original rows; the mean difference is the optimism.
+# Bootstrap optimism correction (Harrell): {{B}} resamples, every one drawn now with
+# the seed EDARK used. Each step refits the model on a resample and scores it on
+# the resample and on the original rows; the mean difference is the optimism.
 set.seed({{seed}})
-boot_plan <- bootstrap_samples(mf, {{B}})
-boot_apparent <- boot_test <- matrix(NA_real_, {{B}}, length(score_names), dimnames = list(NULL, score_names))
-{{curve_init}}
-for (b in seq_len({{B}})) {
-  rows <- mf[boot_plan[[b]]$rows, , drop = FALSE]
-  if (!is.null(boot_plan[[b]]$copy)) {
-    for (cl in resample_clusters) rows[[cl]] <- paste(as.character(rows[[cl]]), boot_plan[[b]]$copy, sep = "#")
-  }
-  fit <- refit(rows)
-  if (is.null(fit) || !all(predictable(fit$data, mf))) next
-  p_boot <- tryCatch(predict_response(fit$model, NULL, mixed), error = function(e) NULL)
-  p_orig <- tryCatch(predict_response(fit$model, align_levels(fit$data, mf), mixed), error = function(e) NULL)
-  if (is.null(p_boot) || is.null(p_orig)) next
-  boot_apparent[b, ] <- performance_scores(p_boot, fit$data[[outcome]], logistic)
-  boot_test[b, ]     <- performance_scores(p_orig, y, logistic){{curve_step}}
-}
-boot_ok <- complete.cases(boot_apparent[, "brier"]) | complete.cases(boot_apparent[, "rmse"])
-boot_keys <- performance_keys(performance_checks, logistic)
-apparent_scores <- performance_scores(pred_apparent, y, logistic)
-optimism <- colMeans(boot_apparent[boot_ok, , drop = FALSE] - boot_test[boot_ok, , drop = FALSE], na.rm = TRUE)
-bootstrap <- data.frame(measure = boot_keys, apparent = apparent_scores[boot_keys],
-                        optimism = optimism[boot_keys], corrected = (apparent_scores - optimism)[boot_keys],
-                        row.names = NULL)
-bootstrap <- bootstrap[is.finite(bootstrap$corrected), , drop = FALSE]
-boot_usable <- sum(boot_ok)   # resamples that could be fitted and scored
-bootstrap
-)---", seed = vl$seed, B = vl$bootstrap_reps,
-
-    curve_init = if (cal) paste(
-      "# Calibration curve points: the central 98% of the apparent predictions",
-      "curve_range <- quantile(pred_apparent, c(0.01, 0.99), na.rm = TRUE, names = FALSE)",
-      "curve_grid  <- if (all(is.finite(curve_range)) && curve_range[1] != curve_range[2]) seq(curve_range[1], curve_range[2], length.out = 50) else numeric(0)",
-      paste0("curve_apparent <- curve_test <- matrix(NA_real_, ", vl$bootstrap_reps, ", length(curve_grid))"),
-      "y_num <- function(v) if (logistic) as.integer(v == levels(v)[2L]) else as.numeric(v)",
-      sep = "\n") else "",
-    curve_step = if (cal) paste0(
-      "\n  curve_apparent[b, ] <- smooth_calibration(p_boot, y_num(fit$data[[outcome]]), curve_grid)",
-      "\n  curve_test[b, ]     <- smooth_calibration(p_orig, y_num(y), curve_grid)") else ""))
-    if (cal) {
-      out <- c(out, .cg_fill(r"---(
-# Bias-corrected calibration curve
-calibration_curve <- data.frame(predicted = curve_grid,
-                                apparent  = smooth_calibration(pred_apparent, y_num(y), curve_grid))
-calibration_curve$corrected <- calibration_curve$apparent -
-  colMeans(curve_apparent[boot_ok, , drop = FALSE] - curve_test[boot_ok, , drop = FALSE], na.rm = TRUE)
-{{clamp}}
-)---", clamp = if (ctx$logit) "calibration_curve$corrected <- pmin(pmax(calibration_curve$corrected, 0), 1)" else ""),
-      if (ctx$figures) .cg_fill(r"---(
-ggplot(calibration_curve, aes(predicted)) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey55") +
-  geom_line(aes(y = apparent, colour = "Apparent"), linetype = "dotted") +
-  geom_line(aes(y = corrected, colour = "Bias-corrected")) +
-  scale_colour_manual(values = c(Apparent = "grey55", `Bias-corrected` = "#2c7be5"), name = NULL) +
-  labs(title = "Calibration curve (bootstrap-corrected)", x = "Predicted", y = "Observed") +
-  theme_minimal()
-)---"))
-    }
+job$plan <- .perf_boot_plan(mf, {{B}}, job$clusters)
+job$n_steps <- length(job$plan)
+job$boot_app <- matrix(NA_real_, job$n_steps, length(.PERF_SCORE_KEYS),
+                       dimnames = list(NULL, .PERF_SCORE_KEYS))
+job$boot_test <- job$boot_app
+job$grid <- .perf_curve_grid(job$pred_apparent)
+job$curve_app <- matrix(NA_real_, job$n_steps, length(job$grid))
+job$curve_test <- job$curve_app
+)---", B = vl$bootstrap_reps, seed = vl$seed),
+      if (multi) "note(\"note\", sprintf(\"Resampling is grouped by %s, the first cluster variable.\", job$clusters[1L]))",
+      "for (b in seq_len(job$n_steps)) job <- .perf_boot_step(job, b)")
   }
 
-  # Figures for the apparent / test set
-  if (ctx$figures) {
-    sets <- c("apparent", if (identical(vl$method, "split")) "test")
-    for (s in sets) {
-      if (ctx$logit && "discrimination" %in% pf$checks) {
-        out <- c(out, "", sprintf("if (!is.null(%s$roc)) pROC::ggroc(%s$roc) + labs(title = \"ROC curve (%s)\") + theme_minimal()", s, s, s))
-      }
-      if (ctx$logit && "calibration" %in% pf$checks) {
-        out <- c(out, sprintf(paste0(
-          "ggplot(%s$calibration, aes(predicted, observed)) +\n",
-          "  geom_abline(slope = 1, intercept = 0, linetype = \"dashed\", colour = \"grey55\") +\n",
-          "  geom_errorbar(aes(ymin = low, ymax = high), width = 0, colour = \"#2c7be5\") +\n",
-          "  geom_point(colour = \"#2c7be5\", size = 2.5) +\n",
-          "  labs(title = \"Calibration by decile (%s)\", x = \"Mean predicted probability\", y = \"Observed proportion\") +\n",
-          "  theme_minimal()"), s, s))
-      }
-    }
-  }
-  sets <- c("apparent = apparent", if (identical(vl$method, "split")) "test = test",
-            if (identical(vl$method, "cv")) "cross_validated = cv",
-            if (identical(vl$method, "bootstrap")) "bootstrap = bootstrap")
-  c(out, "", sprintf("performance <- list(%s)", paste(sets, collapse = ", ")))
+  c(out, "",
+    "# Every set's measures, the summary table and the figures, as EDARK stores them",
+    "performance <- .perf_job_finish(job)",
+    "performance$metrics",
+    if (ctx$figures) "for (set in performance$plots) for (p in set) print(p)")
 }
 
 
 # ── Results ───────────────────────────────────────────────────────────────────
 
-.cg_results <- function(st, ctx) {
-  res <- st$analysis_result
-  rg  <- res$results_generation
+.cg_results <- function(st, ctx, inc) {
+  res  <- st$analysis_result
+  rg   <- res$results_generation
   outs <- rg$outputs %||% character(0)
-  mt  <- ctx$model_type
-  out <- c(sprintf("# Outputs generated: %s", paste(outs, collapse = ", ")))
   unadj <- isTRUE(rg$include_unadjusted)
+  # The fit statistics table reports AUC only if Performance had run when it was made
+  with_perf <- inc("performance") && !is.null(res$performance$run_at) && !is.null(rg$generated_at) &&
+    res$performance$run_at <= rg$generated_at
+  out <- c(sprintf("# Outputs generated: %s", paste(outs, collapse = ", ")),
+           if (with_perf) "model_result$performance <- performance[setdiff(names(performance), \"plots\")]")
   if (unadj) {
-    out <- c(out, "", .cg_fill(r"---(
-# Unadjusted estimates: one model per predictor holding that predictor alone,
-# fitted to the adjusted model's own rows so both share one n{{mixed_note}}
-mf <- model.frame(model)
-unadjusted <- do.call(rbind, lapply(predictors, function(v) {
-  rows <- mf[, intersect(c(outcome, v, clusters), names(mf)), drop = FALSE]
-  if (is.factor(rows[[v]])) rows[[v]] <- droplevels(rows[[v]])
-  rhs <- paste(c(v, if (mixed) paste0("(1 | ", clusters, ")")), collapse = " + ")
-  fit <- tryCatch(fit_model(as.formula(paste(outcome, "~", rhs)), rows), error = function(e) NULL)
-  if (is.null(fit)) return(NULL)
-  ct <- coef_table(fit, rows)
-  ct[ct$variable != "(Intercept)", , drop = FALSE]
-}))
-)---", mixed_note = if (ctx$mixed) " (and the same random intercepts)" else ""))
+    out <- c(out, "",
+             .cg_comment(paste("Unadjusted estimates: one model per predictor holding that predictor alone,",
+                               "fitted to the adjusted model's own rows so both share one n",
+                               if (ctx$mixed) "(and the same random intercepts)." else ".")),
+             "unadjusted <- fit_unadjusted_models(model_result)",
+             "unadjusted$status")
   }
   if (any(c("results_table", "forest_plot") %in% outs)) {
-    cols <- "c(\"variable\", \"level\", \"effect\", \"effect.low\", \"effect.high\", \"p.value\")"
-    out <- c(out, "", sprintf("# Results table: %s (95%% CI) and p for each predictor", if (ctx$logit) "odds ratio" else "coefficient"),
-             sprintf("adjusted <- model_coefficients[model_coefficients$variable != \"(Intercept)\", %s]", cols),
-             if (unadj && "results_table" %in% outs) c(
-               sprintf("results_table <- merge(unadjusted[, %s], adjusted,", cols),
-               "                       by = c(\"variable\", \"level\"), all.y = TRUE, sort = FALSE,",
-               "                       suffixes = c(\".unadjusted\", \".adjusted\"))")
-             else "results_table <- adjusted",
-             "results_table")
+    out <- c(out, "",
+             sprintf("# Results table: %s (95%% CI) and p for each predictor", if (ctx$logit) "odds ratio" else "coefficient"),
+             sprintf("results_table <- build_results_table(model_result, %s)", if (unadj) "unadjusted" else "NULL"),
+             if ("results_table" %in% outs) "results_table_gt(results_table)")
   }
-  if ("forest_plot" %in% outs && ctx$figures) {
-    out <- c(out, "", .cg_fill(r"---(
-# Forest plot of the adjusted estimates
-forest <- adjusted
-forest$label <- ifelse(is.na(forest$level), forest$variable, paste0(forest$variable, ": ", forest$level))
-forest$label <- factor(forest$label, levels = rev(forest$label))
-ggplot(forest, aes(effect, label)) +
-  geom_vline(xintercept = {{null}}, linetype = "dashed", colour = "grey55") +
-  geom_errorbar(aes(xmin = effect.low, xmax = effect.high), width = 0.25, orientation = "y") +
-  geom_point(shape = 15, size = 2.6) +{{scale}}
-  labs(x = {{xlab}}, y = NULL) +
-  theme_minimal()
-)---", null = if (ctx$logit) "1" else "0",
-    scale = if (ctx$logit) "\n  scale_x_log10() +" else "",
-    xlab = .cg_esc(if (ctx$logit) "Odds ratio (95% CI, log scale)" else "Coefficient (95% CI)")))
+  if ("forest_plot" %in% outs) {
+    out <- c(out, "", "# Forest plot of the adjusted estimates", "forest_plot <- build_forest_plot(results_table)",
+             if (ctx$figures) "print(forest_plot)")
   }
   if ("fit_statistics" %in% outs) {
-    out <- c(out, "", "# Fit statistics: model_fit_statistics (section above); AUC and calibration slope: performance")
+    out <- c(out, "", "fit_statistics_table <- build_fit_statistics_table(model_result)", "fit_statistics_table")
   }
   if (!is.null(res$methods_paragraph)) {
     out <- c(out, "", "# Methods paragraph, as written by EDARK:", "#",

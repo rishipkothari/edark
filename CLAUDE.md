@@ -81,7 +81,7 @@ R/
 ├── service_analysis_tables.R       Table 1 (gtsummary); Model › Results table (own data.frame → gt / flextable), fit statistics (Phases 2, 7)
 ├── service_analysis_plots.R        ggplot figures from plain data — diagnostic plots (Phase 6); performance plots (Phase 6b); forest plot (Phase 7)
 ├── service_analysis_variable_selection.R  Univariable screen / stepwise / LASSO (Phase 3)
-├── service_analysis_codegen.R      generate_analysis_script() - the R script that repeats the preparation and every current Analyze step (§A7.9); pure; helper copies from inst/codegen/helpers.R
+├── service_analysis_codegen.R      generate_analysis_script() - the R script that repeats the preparation and every current Analyze step (§A7.9) and edark_functions.R, EDARK's own functions printed from the namespace; pure
 │
 └── data.R                      Roxygen docs for built-in liver_tx dataset
 
@@ -93,8 +93,6 @@ data-raw/
 
 inst/
 ├── report_template.Rmd             Rmd template for HTML report output
-├── codegen/
-│   └── helpers.R                   Copies of the app functions that decide numbers, pasted into the R script by chunk - change with the function they copy (§N6.14)
 ├── templates/
 │   ├── ppt_16x9_blank_template.pptx   Bundled slide template for PPT output
 │   └── word_docx_blank_template.docx  Bundled Word template for DOCX output - Title,

@@ -11,15 +11,17 @@ generate_analysis_script(st, opts = list())
 
 \item{opts}{A list: \code{data_source} (\code{"file"} reads the input
 dataset with \code{readRDS(data_path)}; \code{"liver_tx"} uses the
-built-in dataset), \code{data_path}, \code{figures} (logical: include the
-ggplot code for figures), \code{time} (shown in the header).}
+built-in dataset), \code{data_path}, \code{figures} (logical: print the
+figures as the script runs), \code{time} (shown in the headers).}
 }
 \value{
-A list: \code{text} (the script, one string), \code{lines},
-\code{sections} (data.frame: id, title, status - \code{"included"},
-\code{"stale"}, \code{"not_run"} - and reason), \code{packages},
-\code{seeds} (data.frame: what, seed) and \code{messages}
-(data.frame: level, message).
+A list: \code{text} and \code{lines} (the analysis script,
+\code{analysis_script.R}), \code{functions} (\code{list(text, lines, n)}:
+\code{edark_functions.R}, the EDARK functions the script calls and the
+number of objects in it), \code{sections} (data.frame: id, title, status -
+\code{"included"}, \code{"stale"}, \code{"not_run"} - and reason),
+\code{packages}, \code{seeds} (data.frame: what, seed) and
+\code{messages} (data.frame: level, message).
 }
 \description{
 Generate the analysis R script

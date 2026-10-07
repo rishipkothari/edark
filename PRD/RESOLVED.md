@@ -161,6 +161,19 @@ Two things worth knowing:
 
 ## Analyze
 
+### 2026-10-07 - R script figures were simplified; helpers were hand copies
+
+The first R script matched every number but drew its own simplified ggplot figures, and
+carried hand-written copies of the app functions that decide numbers
+(`inst/codegen/helpers.R`) - two copies of the same logic, free to drift. Now the script is
+two files: `analysis_script.R` writes the analysis steps out and calls the app's own
+functions for every number, table and figure, and `edark_functions.R` holds those functions
+**deparsed from the running namespace** with everything they call - so the figures are the
+app's, and there is nothing to keep in step. Checked: every number, table and figure (layer
+data and labels as ggplot builds them) identical on seven scenarios. Found on the way: name
+lookup on the script must skip `pkg::` operands - the `edark` in `edark::liver_tx` was taken
+for the `edark()` function, whose closure reaches Shiny. **Durable rule: §N6.14.**
+
 ### 2026-10-06 - R script generator (Phase 5b) built; Export's "coming soon" script
 
 Closed two TO-DOs: Phase 5b (the R Code Preview placeholder in Model › Create) and Export's
@@ -170,8 +183,8 @@ method commented out), with the seeds the run used; it lives on a new 4 · Expor
 pill beside Content, generated live when shown, not cached. Spec §A7.9, §A10.6; mechanics
 §N6.14, §N8.9. Checked end to end: seven app states built with the services, exported,
 the exported script run in a fresh R process - 280+ numbers compared with the exported
-`analysis_result.rds`, all differences exactly 0. **Durable rule: §N6.14** (a helper chunk
-copies an app function - change both).
+`analysis_result.rds`, all differences exactly 0. **Durable rule: §N6.14** (superseded
+2026-10-07, above: the functions are now printed from the app, not copied).
 
 ### 2026-10-06 - fit statistics vanished for singular mixed models
 

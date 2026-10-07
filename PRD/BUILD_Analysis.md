@@ -218,7 +218,7 @@ Built with decisions taken 2026-10-06 that change the original plan:
 
 ### What was built
 - `service_analysis_codegen.R` - `generate_analysis_script(st, opts)`, pure, from the export state snapshot
-- `inst/codegen/helpers.R` - copies of the EDARK functions that decide numbers, one chunk each; the script carries only the chunks it uses
+- Two files: `analysis_script.R` (the steps written out) and `edark_functions.R` - EDARK's own functions, printed from the running app with everything they call (2026-10-07; the first version carried hand-written copies and simplified figures)
 - `module_export.R` - `export_page_ui()` (Content / R Code pills), `export_code_ui()`, the R Code server part; the zip's `reproduce/analysis_script.R` is now available
 - `tests/testthat/test-service_analysis_codegen.R` (fast) and `tests/manual/codegen/` - `run_check.R` (script vs app, end to end), `ui_check.R` (the page in headless Chrome)
 
@@ -227,7 +227,8 @@ Built with decisions taken 2026-10-06 that change the original plan:
 - Rebuilds the working dataset from the input dataset (launch casts + Prepare) - identical to the app's and to the exported `data/working_dataset.rds`
 - Rebuilds the model data exactly as `fit_analysis_model()` does
 - **Every number matches the app** - Table 1, univariable screen, stepwise / LASSO selection and lambda, collinearity matrices, coefficients and fit statistics, diagnostics, performance (apparent, test set, CV mean and SD, bootstrap optimism), unadjusted estimates - for all four model types and all four validation methods: 7 scenarios, 280+ comparisons, all differences 0 (`run_check.R`, against the exported `model/analysis_result.rds`)
-- The R Code pill shows the script on entry, regenerates on an option change, Copy and Download Script work (`ui_check.R`)
+- **Every figure matches the app** - the data of each layer and the labels (diagnostics, performance per set, heat maps, forest plot)
+- The R Code pill shows both files on entry, regenerates on an option change, Copy and Download Scripts (zip) work; the downloaded script runs and matches (`ui_check.R`)
 
 ### PRD references
 - §A7.9, §A10.6, §N6.14

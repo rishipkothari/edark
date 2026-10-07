@@ -20,8 +20,10 @@ The script is generated on demand from the export state snapshot
 it when opened, and the export zip writes it as
 \code{reproduce/analysis_script.R}. Pure - no Shiny.
 
-Where the app's own code decides a number, the script carries a copy of
-that function (\code{inst/codegen/helpers.R}), so the script and the app
-compute the same values. If they disagree, the app has a bug - or one of
-the copies has drifted (§N6.14).
+The analysis is written out step by step (data preparation, formulas, the
+fits, step(), cv.glmnet, the fold and resample loops, each with its seed);
+every reported number, table and figure comes from EDARK's own functions,
+which go in a second file, \code{edark_functions.R}, printed from the
+running app (\code{.cg_functions_file()}). Nothing is copied by hand, so the
+script cannot drift from the app (§N6.14).
 }

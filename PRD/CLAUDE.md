@@ -115,7 +115,6 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 | `service_analysis_tables.R` | §N6.10 |
 | `service_analysis_variable_selection.R` | §A9, §N6.5 |
 | `service_analysis_codegen.R` | §A7.9, §N6.14 |
-| `inst/codegen/helpers.R` | §A7.9, §N6.14 |
 | `service_export.R` | §A10, §N8 |
 | `service_export_report.R` | §A10.4, §N8.6 |
 | `inst/www/edark_export.js` | §N8.3, §N8.9 |
@@ -131,7 +130,7 @@ What each file does is in the root `CLAUDE.md`. This is the § lookup.
 - **Analyze:** Phases 0–7, 6b and 5b complete — Setup (incl. model purpose + train/test split), Table 1, Variable Investigation, Covariate Confirmation, Model Creation, Diagnostics, Performance, Results.
 - **Built 2026-09-19:** Phase 7b performance validation — Step 1 validation method (bootstrap / cross-validation / held-out test set, mutually exclusive), settings and Cancel-able runs in Model › Performance (§A1.4a, §A5.3).
 - **Built 2026-10-05 (branch `export_v1`, not yet run in R):** the top-level **4 · Export** page - one zip of the working dataset, session file, Analyze tables / figures / notes and a compiled Word / HTML report; only current outputs exportable ([BUILD_Export.md](BUILD_Export.md), §A10, §N8). Analyze is now five steps.
-- **Built 2026-10-06 (branch `r-code-gen-v1`):** Phase 5b R script generator - 4 · Export is now two pills, Content and R Code; the script repeats the preparation and every current Analyze step with the app's settings and seeds, generated live (§A7.9, §A10.6, §N6.14, §N8.9). Verified: every number matches the app on seven scenarios (`tests/manual/codegen/run_check.R`), page driven with chromote (`ui_check.R`).
+- **Built 2026-10-06 (branch `r-code-gen-v1`):** Phase 5b R script generator - 4 · Export is now two pills, Content and R Code; two files - the steps written out, and EDARK's own functions printed from the app - repeat the preparation and every current Analyze step with the app's settings and seeds, generated live (§A7.9, §A10.6, §N6.14, §N8.9). Verified: every number, table and figure matches the app on seven scenarios (`tests/manual/codegen/run_check.R`), page driven with chromote and the server run with a fitted analysis (`ui_check.R`).
 - **Built 2026-09-23:** UI consistency Stage 1 - honest locking. `R/ui_helpers.R`
   (`EDARK_LOCK_REASON`, `edark_run_button()`, `edark_run_gate()`) and
   `inst/www/edark.css` now exist; every gated Analyze nav item explains itself in a

@@ -134,7 +134,7 @@ test_that("a fitted model is included, and left out once it is stale", {
   expect_false(any(grepl("analysis_data <-", g$lines, fixed = TRUE)))
 })
 
-test_that("the export registry offers the script and writes it", {
+test_that("the export registry offers the script and writes both files", {
   st <- .cg_test_state()
   it <- export_items(st)
   expect_identical(it$status[it$id == "reproduce/analysis_script"], "available")
@@ -143,6 +143,48 @@ test_that("the export registry offers the script and writes it", {
   job <- .export_job_step(job)
   path <- file.path(job$root, "reproduce", "analysis_script.R")
   expect_true(file.exists(path))
+  expect_true(file.exists(file.path(job$root, "reproduce", "edark_functions.R")))
   expect_true(any(grepl("edark::liver_tx", readLines(path), fixed = TRUE)))
-  unlink(job$dir, recursive = TRUE)
+  fin <- .export_job_finish(job)
+  expect_true(any(grepl("edark_functions.R", readLines(file.path(job$root, "README.txt")), fixed = TRUE)))
+  unlink(fin$dir, recursive = TRUE)
+})
+
+test_that("settings are written as R code that reads back unchanged", {
+  spec <- list(variable_roles = list(outcome_variable = "ead", exposure_variable = NULL,
+                                     final_model_covariates = paste0("covariate_number_", 1:9),
+                                     reference_levels = list(bmi = "25 – < 30", `odd name` = "a")),
+               table1_specification = list(stratify_by_exposure = TRUE, include_pvalues_outcome = FALSE),
+               validation_settings = list(cv_folds = 10L, bootstrap_reps = NULL, seed = 20260919L, frac = 0.25))
+  code <- .cg_value(spec)
+  expect_false(any(utf8ToInt(code) > 127L))
+  expect_true(all(nchar(strsplit(code, "\n")[[1]]) <= 78L))
+  expect_identical(eval(parse(text = code)), spec)
+})
+
+test_that("edark_functions.R is EDARK's own code, exactly", {
+  skip_on_cran()
+  st <- .cg_test_state(fit = TRUE)
+  g  <- generate_analysis_script(st)
+  fn <- g$functions
+  expect_gt(fn$n, 5L)
+  expect_false(any(utf8ToInt(fn$text) > 127L))
+  expect_false(any(grepl("shiny::", fn$lines, fixed = TRUE)))
+  # Every object the script needs is defined, and reads back identical to the
+  # one in the package
+  env <- new.env(parent = globalenv())
+  eval(parse(text = fn$text), envir = env)
+  ns <- asNamespace("edark")
+  expect_true(all(c("edark_coef_table", ".prepare_model_rows", ".fit_statistics") %in% ls(env, all.names = TRUE)))
+  for (n in ls(env, all.names = TRUE)) {
+    a <- get(n, envir = ns)
+    b <- get(n, envir = env)
+    if (is.function(a)) {
+      expect_identical(deparse(a), deparse(b), info = n)
+    } else {
+      expect_identical(a, b, info = n)
+    }
+  }
+  # Everything the script calls from EDARK is in the file
+  expect_true(all(.cg_entry_points(g$lines) %in% ls(env, all.names = TRUE)))
 })

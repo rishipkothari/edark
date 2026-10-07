@@ -314,21 +314,8 @@ analysis_performance_job <- function(result, data, checks, validation = NULL) {
 
 # ── Resampling ───────────────────────────────────────────────────────────────
 
-# Run `expr` with a fixed seed, leaving the session's random stream as it was.
-.with_seed <- function(seed, expr) {
-  genv <- globalenv()
-  old  <- if (exists(".Random.seed", envir = genv, inherits = FALSE)) get(".Random.seed", envir = genv)
-  on.exit({
-    if (is.null(old)) {
-      if (exists(".Random.seed", envir = genv, inherits = FALSE)) rm(".Random.seed", envir = genv)
-    } else {
-      assign(".Random.seed", old, envir = genv)
-    }
-  })
-  set.seed(seed)
-  expr
-}
-
+# Resamples are drawn inside .with_seed() (stats_inference.R), which leaves the
+# session's random stream as it was.
 
 # Fold assignment for each repeat. Mixed: whole clusters of the first cluster
 # variable go to a fold (the left-out rows then come from unseen clusters, as

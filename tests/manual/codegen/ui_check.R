@@ -80,21 +80,33 @@ fails <- 0L
       identical(grepl("Analysis dataset (Analyze > Setup)", txt, fixed = TRUE), expect_analysis))
   info <- .js(b, "document.getElementById('export-code_info').innerText")
   .ok("info pane lists what the script repeats", grepl("THE SCRIPT REPEATS|The script repeats", info) && grepl("Input data and Prepare", info))
-  .ok("Copy button carries its target", identical(.js(b, "document.getElementById('export-code_copy').getAttribute('data-copy-target')"), "export-code"))
-  .ok("Download Script has a link", .wait_for(b, "(document.getElementById('export-code_download')||{}).getAttribute && /session\\//.test(document.getElementById('export-code_download').getAttribute('href')||'')", 20))
-  href <- .js(b, "document.getElementById('export-code_download').href")
-  dl <- tryCatch(readLines(href, warn = FALSE), error = function(e) character(0))
-  .ok("Download Script returns the same script", length(dl) > 10 && identical(paste(dl, collapse = "\n"), gsub("\r", "", txt)) ||
-        identical(trimws(paste(dl, collapse = "\n")), trimws(gsub("\r", "", txt))))
+  .ok("Copy buttons carry their targets",
+      identical(.js(b, "document.getElementById('export-code_copy').getAttribute('data-copy-target')"), "export-code") &&
+      identical(.js(b, "document.getElementById('export-code_copy_fn').getAttribute('data-copy-target')"), "export-code_fn"))
   b$screenshot(file.path(out_dir, paste0(label, "_rcode.png")), selector = "body", wait_ = TRUE)
+  .click(b, "a[data-value='functions']")
+  .ok("edark_functions.R tab shows the functions file",
+      .wait_for(b, "(document.getElementById('export-code_fn')||{}).innerText && document.getElementById('export-code_fn').innerText.indexOf('EDARK functions used by analysis_script.R') >= 0", 30))
+  fn_txt <- .js(b, "document.getElementById('export-code_fn').innerText")
+  .ok("functions file parses", isTRUE(tryCatch({ parse(text = fn_txt); TRUE }, error = function(e) FALSE)))
+  b$screenshot(file.path(out_dir, paste0(label, "_rcode_functions.png")), selector = "body", wait_ = TRUE)
+  .click(b, "a[data-value='script']")
+  .ok("Download Scripts has a link", .wait_for(b, "(document.getElementById('export-code_download')||{}).getAttribute && /session\\//.test(document.getElementById('export-code_download').getAttribute('href')||'')", 20))
+  href <- .js(b, "document.getElementById('export-code_download').href")
+  zf <- tempfile(fileext = ".zip")
+  ok_dl <- tryCatch({ utils::download.file(href, zf, mode = "wb", quiet = TRUE); TRUE }, error = function(e) FALSE)
+  zd <- tempfile(); if (ok_dl) utils::unzip(zf, exdir = zd)
+  .same <- function(file, shown) {
+    f <- file.path(zd, file)
+    file.exists(f) && identical(trimws(paste(readLines(f, warn = FALSE), collapse = "\n")), trimws(gsub("\r", "", shown)))
+  }
+  .ok("Download Scripts is a zip of the two files, as shown",
+      ok_dl && .same("analysis_script.R", txt) && .same("edark_functions.R", fn_txt))
 
   # Switching to "A file" regenerates the script
   .js(b, "(function(){var r=document.querySelector(\"input[name='export-code_source'][value='file']\"); r.click(); return true;})()")
   .ok("choosing a file regenerates the script",
       .wait_for(b, "document.getElementById('export-code').innerText.indexOf('readRDS(\"input_data.rds\")') >= 0", 20))
-  .js(b, "(function(){var c=document.getElementById('export-code_figures'); c.click(); return true;})()")
-  .ok("turning figures off drops the ggplot code",
-      .wait_for(b, "document.getElementById('export-code').innerText.indexOf('pacman::p_load(dplyr)') >= 0 || document.getElementById('export-code').innerText.indexOf('ggplot(') < 0", 20))
   b$screenshot(file.path(out_dir, paste0(label, "_rcode_file.png")), selector = "body", wait_ = TRUE)
 
   errs <- proc$read_error()
@@ -105,13 +117,58 @@ fails <- 0L
 .check_app("plain", 8811)
 
 # A session restores Prepare and the Analyze roles (no fitted outputs)
-st <- cg_build_state(cg_scenarios$logistic_bootstrap)
-sess <- build_session(dataset_input = liver_tx, column_types = st$original_column_types,
-                      prepare = st$last_applied_specs, analysis_spec = st$analysis_spec,
+app_st <- cg_build_state(cg_scenarios$logistic_bootstrap)
+sess <- build_session(dataset_input = liver_tx, column_types = app_st$original_column_types,
+                      prepare = app_st$last_applied_specs, analysis_spec = app_st$analysis_spec,
                       custom_report_items = list(), include_data = FALSE)
 sess_path <- file.path(out_dir, "check.edark.rds")
 saveRDS(sess, sess_path)
 .check_app("session", 8812, sess_path, expect_analysis = TRUE)
+
+# The page's server with a full fitted analysis (a launched app cannot be given
+# one without clicking through Analyze): the two files, the zip download, the
+# figures option, and the downloaded script run on its own.
+cat("\n== server, fitted analysis ==\n")
+input_path <- file.path(out_dir, "ui_input.rds")
+saveRDS(liver_tx, input_path)
+ss <- shiny::reactiveValues(
+  dataset_original = app_st$dataset_original, dataset_working = app_st$dataset_working,
+  original_column_types = app_st$original_column_types, last_applied_specs = app_st$last_applied_specs,
+  custom_report_items = list(), analysis_data = app_st$analysis_data, analysis_spec = app_st$analysis_spec,
+  analysis_result = app_st$analysis_result, has_pending_changes = FALSE)
+shiny::testServer(export_server, args = list(shared_state = ss, dataset_input = liver_tx), {
+  session$setInputs(tabs = "code", code_source = "file", code_path = gsub("\\\\", "/", input_path),
+                    code_figures = TRUE)
+  txt <- output$code
+  fn  <- output$code_fn
+  .ok("script and functions file render", grepl("source(\"edark_functions.R\")", txt, fixed = TRUE) &&
+        grepl("^# =+\n# EDARK functions used by analysis_script.R", fn))
+  .ok("every step of the analysis is in the script",
+      all(vapply(c("build_table1(", "stats::step(", "glmnet::cv.glmnet(", "edark_coef_table(model",
+                   ".diag_residuals(", ".perf_boot_step(", "build_forest_plot("), grepl, logical(1),
+                 x = txt, fixed = TRUE)))
+  .ok("figures are printed", grepl("print(forest_plot)", txt, fixed = TRUE))
+  zf <- output$code_download
+  zd <- tempfile()
+  utils::unzip(zf, exdir = zd)
+  .file_is <- function(file, shown) {
+    identical(trimws(paste(readLines(file.path(zd, file)), collapse = "\n")), trimws(shown))
+  }
+  .ok("Download Scripts zip holds both files, as shown",
+      .file_is("analysis_script.R", txt) && .file_is("edark_functions.R", fn))
+  got <- callr::r(function(dir) {
+    setwd(dir)
+    grDevices::pdf(NULL)
+    env <- new.env(parent = globalenv())
+    sys.source("analysis_script.R", envir = env, toplevel.env = env)
+    list(coef = env$model_coefficients, metrics = env$performance$metrics)
+  }, args = list(dir = zd), show = FALSE)
+  .ok("the downloaded script runs and matches the app",
+      isTRUE(all.equal(app_st$analysis_result$inference_summary$coefficients, got$coef)) &&
+        isTRUE(all.equal(app_st$analysis_result$performance$metrics, got$metrics)))
+  session$setInputs(code_figures = FALSE)
+  .ok("figures off: no print() calls", !grepl("print(", output$code, fixed = TRUE))
+})
 
 cat(sprintf("\n%s\n", if (fails == 0L) "All UI checks passed." else sprintf("%d UI check(s) failed.", fails)))
 if (fails > 0L) quit(status = 1)
